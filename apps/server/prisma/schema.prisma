@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  createdAt DateTime  @default(now())
+  projects  Project[]
+}
+
+model Project {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime  @default(now())
+  tunnels   Tunnel[]
+
+  @@index([userId])
+}
+
+model Tunnel {
+  id        String       @id @default(cuid())
+  projectId String
+  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  subdomain String       @unique
+  port      Int
+  status    TunnelStatus @default(OFFLINE)
+  createdAt DateTime     @default(now())
+  expiresAt DateTime?
+  comments  Comment[]
+
+  @@index([projectId])
+}
+
+enum TunnelStatus {
+  ONLINE
+  OFFLINE
+  EXPIRED
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  tunnelId   String
+  tunnel     Tunnel   @relation(fields: [tunnelId], references: [id], onDelete: Cascade)
+  page       String
+  selector   String?
+  x          Float?
+  y          Float?
+  message    String
+  screenshot String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([tunnelId])
+}
