@@ -58,7 +58,14 @@ packages/
   tunnel-client/  WebSocket tunnel client
 ```
 
-See [DEVELOPMENT.md](./DEVELOPMENT.md) for the full development plan.
+## CLI (Phase 0 stub)
+
+```bash
+pnpm --filter shiplocal build
+node packages/cli/dist/index.js 3000
+```
+
+Prints config and exits cleanly. Real tunneling arrives in Phase 1.
 
 ## Troubleshooting
 

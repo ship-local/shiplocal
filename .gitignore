@@ -8,6 +8,7 @@ dist
 .turbo
 out
 build
+apps/server/src/generated
 
 # Environment
 .env
