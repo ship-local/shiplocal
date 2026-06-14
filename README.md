@@ -58,14 +58,23 @@ packages/
   tunnel-client/  WebSocket tunnel client
 ```
 
-## CLI (Phase 0 stub)
+## CLI
 
 ```bash
+# Terminal 1 — start your local app
+npm run dev   # e.g. on port 3000
+
+# Terminal 2 — start ShipLocal server
+pnpm --filter @shiplocal/server dev
+
+# Terminal 3 — expose localhost
 pnpm --filter shiplocal build
 node packages/cli/dist/index.js 3000
 ```
 
-Prints config and exits cleanly. Real tunneling arrives in Phase 1.
+You'll get a public URL like `http://happy-lion.localhost:4000`. Open it in a browser to see your local app.
+
+For local development, set `SHIPLOCAL_DOMAIN=localhost` in `apps/server/.env`. Path fallback: `http://localhost:4000/t/{subdomain}/`.
 
 ## Troubleshooting
 
