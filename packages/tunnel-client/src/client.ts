@@ -32,6 +32,19 @@ function toWebSocketUrl(serverUrl: string): string {
   return url.toString();
 }
 
+function formatLocalProxyError(err: unknown, localPort: number): string {
+  if (err instanceof Error && 'code' in err && err.code === 'ECONNREFUSED') {
+    return [
+      `Nothing is running on http://127.0.0.1:${String(localPort)}.`,
+      '',
+      'Start your local server on that port, then refresh this page.',
+      `If your app uses a different port, restart the CLI with that port (e.g. shiplocal ${String(localPort)}).`,
+    ].join('\n');
+  }
+
+  return err instanceof Error ? err.message : 'Bad gateway';
+}
+
 function rawDataToString(raw: WebSocket.RawData): string {
   if (typeof raw === 'string') return raw;
   if (Buffer.isBuffer(raw)) return raw.toString('utf8');
@@ -101,6 +114,18 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
       return;
     }
 
+    if (message.type === 'error') {
+      const authError = new Error(message.message);
+      if (!hasRegistered && connectReject) {
+        connectReject(authError);
+        connectReject = null;
+        connectResolve = null;
+        intentionalClose = true;
+        ws?.close();
+      }
+      return;
+    }
+
     if (message.type === 'ping') {
       ws?.send(JSON.stringify({ type: 'pong' }));
       return;
@@ -111,12 +136,13 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
         const response = await forwardToLocal(options.localPort, message);
         ws?.send(JSON.stringify(response));
       } catch (err) {
+        const messageText = formatLocalProxyError(err, options.localPort);
         const errorResponse = {
           type: 'response' as const,
           id: message.id,
           status: 502,
-          headers: { 'content-type': 'text/plain' },
-          body: Buffer.from(err instanceof Error ? err.message : 'Bad gateway').toString('base64'),
+          headers: { 'content-type': 'text/plain; charset=utf-8' },
+          body: Buffer.from(messageText).toString('base64'),
         };
         ws?.send(JSON.stringify(errorResponse));
       }

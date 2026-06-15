@@ -19,6 +19,13 @@ const HOP_BY_HOP_HEADERS = new Set([
   'upgrade',
 ]);
 
+// Node's http client auto-decompresses gzip/br bodies but leaves these headers intact.
+const STRIP_RESPONSE_HEADERS = new Set([
+  ...HOP_BY_HOP_HEADERS,
+  'content-encoding',
+  'content-length',
+]);
+
 function sanitizeRequestHeaders(
   headers: Record<string, string | string[]>,
 ): http.OutgoingHttpHeaders {
@@ -26,7 +33,9 @@ function sanitizeRequestHeaders(
 
   for (const [key, value] of Object.entries(headers)) {
     const lower = key.toLowerCase();
-    if (HOP_BY_HOP_HEADERS.has(lower) || lower === 'host') continue;
+    if (HOP_BY_HOP_HEADERS.has(lower) || lower === 'host' || lower === 'accept-encoding') {
+      continue;
+    }
     result[key] = value;
   }
 
@@ -38,7 +47,7 @@ function sanitizeResponseHeaders(headers: IncomingHttpHeaders): Record<string, s
 
   for (const [key, value] of Object.entries(headers)) {
     const lower = key.toLowerCase();
-    if (HOP_BY_HOP_HEADERS.has(lower)) continue;
+    if (STRIP_RESPONSE_HEADERS.has(lower)) continue;
     if (value === undefined) continue;
     result[key] = value;
   }

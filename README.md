@@ -61,20 +61,22 @@ packages/
 ## CLI
 
 ```bash
-# Terminal 1 — start your local app
-npm run dev   # e.g. on port 3000
+# 1. Log in (saves token to ~/.shiplocal/config.json)
+pnpm --filter shiplocal build
+node packages/cli/dist/index.js login
 
-# Terminal 2 — start ShipLocal server
+# 2. Start your local app on port 3000
+
+# 3. Start ShipLocal server
 pnpm --filter @shiplocal/server dev
 
-# Terminal 3 — expose localhost
-pnpm --filter shiplocal build
+# 4. Expose localhost
 node packages/cli/dist/index.js 3000
 ```
 
-You'll get a public URL like `http://happy-lion.localhost:4000`. Open it in a browser to see your local app.
+You'll get a public URL like `http://happy-lion.localhost:4000`. Manage tunnels at http://localhost:3001/dashboard.
 
-For local development, set `SHIPLOCAL_DOMAIN=localhost` in `apps/server/.env`. Path fallback: `http://localhost:4000/t/{subdomain}/`.
+For local development, set `SHIPLOCAL_DOMAIN=localhost` in `apps/server/.env`.
 
 ## Troubleshooting
 

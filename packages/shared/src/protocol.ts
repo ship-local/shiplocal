@@ -15,6 +15,7 @@ export const registerMessageSchema = z.object({
   type: z.literal('register'),
   localPort: z.number().int().min(1).max(65535),
   token: z.string().optional(),
+  projectId: z.string().optional(),
 });
 
 export const registeredMessageSchema = z.object({

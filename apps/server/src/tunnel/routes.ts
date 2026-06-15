@@ -9,7 +9,13 @@ import {
   parseTunnelPath,
   TUNNEL_WS_PATH,
 } from '@shiplocal/shared';
+import { resolveUserFromApiToken } from '../routes/auth.js';
+import { prisma } from '../db.js';
 import { getTunnelManager } from './manager.js';
+import { injectFeedbackOverlay, isHtmlResponse } from '../routes/comments.js';
+
+const API_PUBLIC_URL = process.env['API_PUBLIC_URL'] ?? 'http://localhost:4000';
+const FEEDBACK_OVERLAY_ENABLED = process.env['FEEDBACK_OVERLAY_ENABLED'] !== 'false';
 
 function rawDataToString(raw: unknown): string {
   if (typeof raw === 'string') return raw;
@@ -57,10 +63,33 @@ function applyResponseHeaders(
   reply: FastifyReply,
   headers: Record<string, string | string[]>,
 ): void {
+  const skip = new Set(['transfer-encoding', 'content-encoding', 'content-length']);
+
   for (const [key, value] of Object.entries(headers)) {
-    if (key.toLowerCase() === 'transfer-encoding') continue;
+    const lower = key.toLowerCase();
+    if (skip.has(lower)) continue;
     reply.header(key, value);
   }
+}
+
+async function getOrCreateProject(userId: string, projectId?: string) {
+  if (projectId) {
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, userId },
+    });
+    if (project) return project;
+  }
+
+  const existing = await prisma.project.findFirst({
+    where: { userId },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  if (existing) return existing;
+
+  return prisma.project.create({
+    data: { userId, name: 'My Demo Site' },
+  });
 }
 
 export function registerTunnelWebSocket(app: FastifyInstance): void {
@@ -69,39 +98,77 @@ export function registerTunnelWebSocket(app: FastifyInstance): void {
     let session = null as ReturnType<typeof manager.createSession> | null;
 
     socket.on('message', (raw) => {
-      try {
-        const message = parseTunnelMessage(rawDataToString(raw));
+      void (async () => {
+        try {
+          const message = parseTunnelMessage(rawDataToString(raw));
 
-        if (message.type === 'register') {
-          if (session) return;
+          if (message.type === 'register') {
+            if (session) return;
 
-          session = manager.createSession(socket, message.localPort);
+            const user = await resolveUserFromApiToken(message.token);
+            if (!user) {
+              socket.send(
+                JSON.stringify({
+                  type: 'error',
+                  message: 'Authentication required. Run shiplocal login',
+                }),
+              );
+              socket.close();
+              return;
+            }
 
-          socket.send(
-            JSON.stringify({
-              type: 'registered',
-              tunnelId: session.id,
-              subdomain: session.subdomain,
-              publicUrl: session.publicUrl,
-              expiresAt: session.expiresAt.toISOString(),
-            }),
-          );
-          return;
+            const project = await getOrCreateProject(user.id, message.projectId);
+            const subdomain = manager.generateSubdomain();
+            const expiresAt = manager.getExpiryDate();
+            const publicUrl = manager.buildPublicUrl(subdomain);
+
+            const dbTunnel = await prisma.tunnel.create({
+              data: {
+                projectId: project.id,
+                subdomain,
+                port: message.localPort,
+                status: 'ONLINE',
+                expiresAt,
+              },
+            });
+
+            session = manager.createSession({
+              socket,
+              localPort: message.localPort,
+              dbTunnelId: dbTunnel.id,
+              projectId: project.id,
+              userId: user.id,
+              subdomain,
+              publicUrl,
+              expiresAt,
+            });
+
+            socket.send(
+              JSON.stringify({
+                type: 'registered',
+                tunnelId: dbTunnel.id,
+                subdomain: session.subdomain,
+                publicUrl: session.publicUrl,
+                expiresAt: session.expiresAt.toISOString(),
+              }),
+            );
+            return;
+          }
+
+          if (!session) return;
+
+          if (message.type === 'pong') {
+            manager.handlePong(session);
+            return;
+          }
+
+          if (message.type === 'response') {
+            manager.handleResponse(session, message);
+          }
+        } catch (err) {
+          app.log.warn({ err }, 'Invalid tunnel WebSocket message');
         }
-
-        if (!session) return;
-
-        if (message.type === 'pong') {
-          manager.handlePong(session);
-          return;
-        }
-
-        if (message.type === 'response') {
-          manager.handleResponse(session, message);
-        }
-      } catch (err) {
-        app.log.warn({ err }, 'Invalid tunnel WebSocket message');
-      }
+      })();
     });
 
     socket.on('close', () => {
@@ -117,6 +184,15 @@ async function proxyTunnelRequest(
   reply: FastifyReply,
   domain: string,
 ): Promise<void> {
+  if (
+    request.url.startsWith('/api/') ||
+    request.url.startsWith('/health') ||
+    request.url.startsWith('/overlay.js')
+  ) {
+    reply.callNotFound();
+    return;
+  }
+
   const manager = getTunnelManager();
   const hostSubdomain = parseTunnelHost(request.headers.host, domain);
   const pathMatch = hostSubdomain ? null : parseTunnelPath(request.url);
@@ -159,7 +235,24 @@ async function proxyTunnelRequest(
     });
 
     applyResponseHeaders(reply, response.headers);
-    const responseBody = decodeBody(response.body);
+    let responseBody = decodeBody(response.body);
+
+    const contentType = response.headers['content-type'];
+    if (
+      FEEDBACK_OVERLAY_ENABLED &&
+      isHtmlResponse(contentType) &&
+      response.status >= 200 &&
+      response.status < 300
+    ) {
+      const html = injectFeedbackOverlay(
+        responseBody.toString('utf8'),
+        session.dbTunnelId,
+        API_PUBLIC_URL,
+      );
+      responseBody = Buffer.from(html, 'utf8');
+      reply.header('content-type', 'text/html; charset=utf-8');
+    }
+
     await reply.code(response.status).send(responseBody);
   } catch (err) {
     request.log.error({ err, subdomain }, 'Tunnel proxy failed');

@@ -29,6 +29,19 @@ export default function HomePage() {
         }}
       >
         <Link
+          href="/login"
+          style={{
+            background: 'var(--surface)',
+            color: 'var(--foreground)',
+            border: '1px solid var(--border)',
+            padding: '0.625rem 1.25rem',
+            borderRadius: '0.5rem',
+            fontWeight: 500,
+          }}
+        >
+          Sign in
+        </Link>
+        <Link
           href="/dashboard"
           style={{
             background: 'var(--accent)',

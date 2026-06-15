@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import cors from '@fastify/cors';
+import jwt from '@fastify/jwt';
 import websocket from '@fastify/websocket';
 import Fastify from 'fastify';
 import {
@@ -8,6 +9,10 @@ import {
   DEFAULT_TUNNEL_EXPIRY_MS,
 } from '@shiplocal/shared';
 import { checkDatabaseConnection, prisma } from './db.js';
+import { registerCommentRoutes } from './routes/comments.js';
+import { registerAuthRoutes } from './routes/auth.js';
+import { registerProjectRoutes } from './routes/projects.js';
+import { registerTunnelRoutes } from './routes/tunnels.js';
 import { initTunnelManager } from './tunnel/manager.js';
 import { registerTunnelHttpProxy, registerTunnelWebSocket } from './tunnel/routes.js';
 
@@ -24,6 +29,11 @@ const app = Fastify({
 
 await app.register(cors, {
   origin: true,
+  credentials: true,
+});
+
+await app.register(jwt, {
+  secret: process.env['JWT_SECRET'] ?? 'dev-secret-change-me',
 });
 
 await app.register(websocket);
@@ -37,6 +47,10 @@ initTunnelManager({
   },
 });
 
+registerAuthRoutes(app);
+registerCommentRoutes(app);
+registerProjectRoutes(app);
+registerTunnelRoutes(app, tunnelDomain, port);
 registerTunnelWebSocket(app);
 
 app.get('/health', async () => {
@@ -57,7 +71,7 @@ app.get('/api/status', async () => {
 
   return {
     service: 'shiplocal-server',
-    version: '0.0.1',
+    version: '0.0.2',
     projects: projectCount,
     tunnels: tunnelCount,
   };

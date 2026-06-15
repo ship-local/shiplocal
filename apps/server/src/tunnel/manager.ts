@@ -9,6 +9,7 @@ import {
   type TunnelRequestMessage,
   type TunnelResponseMessage,
 } from '@shiplocal/shared';
+import { prisma } from '../db.js';
 
 export interface PendingRequest {
   resolve: (response: TunnelResponseMessage) => void;
@@ -18,6 +19,9 @@ export interface PendingRequest {
 
 export interface TunnelSession {
   id: string;
+  dbTunnelId: string;
+  projectId: string;
+  userId: string;
   subdomain: string;
   localPort: number;
   socket: WebSocket;
@@ -27,16 +31,29 @@ export interface TunnelSession {
   pendingRequests: Map<string, PendingRequest>;
 }
 
+export interface CreateSessionInput {
+  socket: WebSocket;
+  localPort: number;
+  dbTunnelId: string;
+  projectId: string;
+  userId: string;
+  subdomain: string;
+  publicUrl: string;
+  expiresAt: Date;
+}
+
 export interface TunnelManagerOptions {
   domain: string;
   port: number;
   expiryMs?: number;
   onExpired?: (session: TunnelSession) => void;
+  onSessionRemoved?: (session: TunnelSession) => void;
 }
 
 export class TunnelManager {
   private readonly sessions = new Map<string, TunnelSession>();
   private readonly subdomainIndex = new Map<string, string>();
+  private readonly dbTunnelIndex = new Map<string, string>();
   private readonly expiryMs: number;
   private readonly expiryTimer: ReturnType<typeof setInterval>;
   private readonly heartbeatTimer: ReturnType<typeof setInterval>;
@@ -45,7 +62,7 @@ export class TunnelManager {
     this.expiryMs = options.expiryMs ?? DEFAULT_TUNNEL_EXPIRY_MS;
 
     this.expiryTimer = setInterval(() => {
-      this.sweepExpired();
+      void this.sweepExpired();
     }, 60_000);
 
     this.heartbeatTimer = setInterval(() => {
@@ -53,30 +70,50 @@ export class TunnelManager {
     }, HEARTBEAT_INTERVAL_MS);
   }
 
-  createSession(socket: WebSocket, localPort: number): TunnelSession {
+  generateSubdomain(): string {
     let subdomain = generateSubdomain();
-
     while (this.subdomainIndex.has(subdomain)) {
       subdomain = generateSubdomain();
     }
+    return subdomain;
+  }
 
-    const id = randomUUID();
-    const expiresAt = new Date(Date.now() + this.expiryMs);
-    const publicUrl = this.buildPublicUrl(subdomain);
+  buildPublicUrl(subdomain: string): string {
+    const { domain, port } = this.options;
+    const hostname = domain.split(':')[0] ?? domain;
+    const isLocal = hostname === 'localhost' || hostname.endsWith('.localhost');
 
+    if (isLocal) {
+      return `http://${subdomain}.localhost:${String(port)}`;
+    }
+
+    const protocol = port === 443 ? 'https' : 'http';
+    const portSuffix = port === 80 || port === 443 ? '' : `:${String(port)}`;
+    return `${protocol}://${subdomain}.${domain}${portSuffix}`;
+  }
+
+  getExpiryDate(): Date {
+    return new Date(Date.now() + this.expiryMs);
+  }
+
+  createSession(input: CreateSessionInput): TunnelSession {
     const session: TunnelSession = {
-      id,
-      subdomain,
-      localPort,
-      socket,
-      publicUrl,
-      expiresAt,
+      id: randomUUID(),
+      dbTunnelId: input.dbTunnelId,
+      projectId: input.projectId,
+      userId: input.userId,
+      subdomain: input.subdomain,
+      localPort: input.localPort,
+      socket: input.socket,
+      publicUrl: input.publicUrl,
+      expiresAt: input.expiresAt,
       lastPongAt: Date.now(),
       pendingRequests: new Map(),
     };
 
-    this.sessions.set(id, session);
-    this.subdomainIndex.set(subdomain, id);
+    this.sessions.set(session.id, session);
+    this.subdomainIndex.set(session.subdomain, session.id);
+    this.dbTunnelIndex.set(session.dbTunnelId, session.id);
 
     return session;
   }
@@ -87,6 +124,16 @@ export class TunnelManager {
     return this.sessions.get(id);
   }
 
+  getByDbTunnelId(dbTunnelId: string): TunnelSession | undefined {
+    const id = this.dbTunnelIndex.get(dbTunnelId);
+    if (!id) return undefined;
+    return this.sessions.get(id);
+  }
+
+  isLive(dbTunnelId: string): boolean {
+    return this.dbTunnelIndex.has(dbTunnelId);
+  }
+
   getBySocket(socket: WebSocket): TunnelSession | undefined {
     for (const session of this.sessions.values()) {
       if (session.socket === socket) return session;
@@ -94,7 +141,10 @@ export class TunnelManager {
     return undefined;
   }
 
-  removeSession(session: TunnelSession): void {
+  removeSession(
+    session: TunnelSession,
+    options: { updateDb?: boolean } = { updateDb: true },
+  ): void {
     for (const pending of session.pendingRequests.values()) {
       clearTimeout(pending.timeout);
       pending.reject(new Error('Tunnel closed'));
@@ -103,10 +153,22 @@ export class TunnelManager {
 
     this.sessions.delete(session.id);
     this.subdomainIndex.delete(session.subdomain);
+    this.dbTunnelIndex.delete(session.dbTunnelId);
 
     if (session.socket.readyState === session.socket.OPEN) {
       session.socket.close();
     }
+
+    if (options.updateDb) {
+      void prisma.tunnel
+        .update({
+          where: { id: session.dbTunnelId },
+          data: { status: 'OFFLINE' },
+        })
+        .catch(() => undefined);
+    }
+
+    this.options.onSessionRemoved?.(session);
   }
 
   handlePong(session: TunnelSession): void {
@@ -158,27 +220,19 @@ export class TunnelManager {
     }
   }
 
-  private buildPublicUrl(subdomain: string): string {
-    const { domain, port } = this.options;
-    const hostname = domain.split(':')[0] ?? domain;
-    const isLocal = hostname === 'localhost' || hostname.endsWith('.localhost');
-
-    if (isLocal) {
-      return `http://${subdomain}.localhost:${String(port)}`;
-    }
-
-    const protocol = port === 443 ? 'https' : 'http';
-    const portSuffix = port === 80 || port === 443 ? '' : `:${String(port)}`;
-    return `${protocol}://${subdomain}.${domain}${portSuffix}`;
-  }
-
-  private sweepExpired(): void {
+  private async sweepExpired(): Promise<void> {
     const now = Date.now();
 
     for (const session of [...this.sessions.values()]) {
       if (session.expiresAt.getTime() <= now) {
         this.options.onExpired?.(session);
-        this.removeSession(session);
+        await prisma.tunnel
+          .update({
+            where: { id: session.dbTunnelId },
+            data: { status: 'EXPIRED' },
+          })
+          .catch(() => undefined);
+        this.removeSession(session, { updateDb: false });
       }
     }
   }

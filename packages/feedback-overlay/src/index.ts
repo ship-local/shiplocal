@@ -1,0 +1,233 @@
+import html2canvas from 'html2canvas';
+
+interface OverlayConfig {
+  tunnelId: string;
+  apiUrl: string;
+}
+
+function getConfig(): OverlayConfig | null {
+  const script = document.currentScript as HTMLScriptElement | null;
+  const tunnelId = script?.dataset['tunnelId'];
+  const apiUrl = script?.dataset['apiUrl'];
+
+  if (!tunnelId || !apiUrl) return null;
+  return { tunnelId, apiUrl };
+}
+
+function buildSelector(element: Element): string {
+  if (element.id) return `#${CSS.escape(element.id)}`;
+
+  const parts: string[] = [];
+  let current: Element | null = element;
+
+  while (current && current.nodeType === Node.ELEMENT_NODE && parts.length < 5) {
+    let part = current.tagName.toLowerCase();
+    if (current.classList.length > 0) {
+      part += `.${Array.from(current.classList).slice(0, 2).join('.')}`;
+    }
+    parts.unshift(part);
+    current = current.parentElement;
+  }
+
+  return parts.join(' > ');
+}
+
+function createStyles(): void {
+  if (document.getElementById('shiplocal-overlay-styles')) return;
+
+  const style = document.createElement('style');
+  style.id = 'shiplocal-overlay-styles';
+  style.textContent = `
+    #shiplocal-feedback-btn {
+      position: fixed; bottom: 24px; right: 24px; z-index: 2147483646;
+      width: 52px; height: 52px; border-radius: 50%; border: none;
+      background: #3b82f6; color: white; font-size: 22px; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+    #shiplocal-feedback-btn.active { background: #1d4ed8; }
+    .shiplocal-highlight { outline: 2px solid #3b82f6 !important; outline-offset: 2px !important; cursor: crosshair !important; }
+    #shiplocal-modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2147483647;
+      display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    #shiplocal-modal {
+      background: white; color: #111; border-radius: 12px; padding: 20px;
+      width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    #shiplocal-modal textarea {
+      width: 100%; min-height: 100px; margin: 12px 0; padding: 10px;
+      border: 1px solid #ddd; border-radius: 8px; font: inherit; resize: vertical;
+    }
+    #shiplocal-modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    #shiplocal-modal-actions button {
+      padding: 8px 14px; border-radius: 8px; border: none; cursor: pointer; font: inherit;
+    }
+    #shiplocal-submit { background: #3b82f6; color: white; }
+    #shiplocal-cancel { background: #f4f4f5; color: #111; }
+  `;
+  document.head.appendChild(style);
+}
+
+function init(): void {
+  const config = getConfig();
+  if (!config) return;
+
+  const { tunnelId, apiUrl } = config;
+
+  createStyles();
+
+  let pickMode = false;
+  let highlighted: Element | null = null;
+
+  const btn = document.createElement('button');
+  btn.id = 'shiplocal-feedback-btn';
+  btn.type = 'button';
+  btn.title = 'Leave feedback';
+  btn.textContent = '💬';
+  document.body.appendChild(btn);
+
+  function clearHighlight(): void {
+    if (highlighted) {
+      highlighted.classList.remove('shiplocal-highlight');
+      highlighted = null;
+    }
+  }
+
+  function setPickMode(enabled: boolean): void {
+    pickMode = enabled;
+    btn.classList.toggle('active', enabled);
+    document.body.style.cursor = enabled ? 'crosshair' : '';
+    if (!enabled) clearHighlight();
+  }
+
+  function openModal(element: Element): void {
+    setPickMode(false);
+
+    const backdrop = document.createElement('div');
+    backdrop.id = 'shiplocal-modal-backdrop';
+
+    const modal = document.createElement('div');
+    modal.id = 'shiplocal-modal';
+    modal.innerHTML = `
+      <strong>Leave feedback</strong>
+      <p style="margin:8px 0 0;font-size:14px;color:#666">Describe what you'd like changed on this element.</p>
+    `;
+
+    const textarea = document.createElement('textarea');
+    textarea.placeholder = 'e.g. Make this button bigger';
+
+    const actions = document.createElement('div');
+    actions.id = 'shiplocal-modal-actions';
+
+    const cancel = document.createElement('button');
+    cancel.id = 'shiplocal-cancel';
+    cancel.type = 'button';
+    cancel.textContent = 'Cancel';
+
+    const submit = document.createElement('button');
+    submit.id = 'shiplocal-submit';
+    submit.type = 'button';
+    submit.textContent = 'Send feedback';
+
+    actions.append(cancel, submit);
+    modal.append(textarea, actions);
+    backdrop.appendChild(modal);
+    document.body.appendChild(backdrop);
+
+    cancel.onclick = () => {
+      backdrop.remove();
+    };
+
+    submit.onclick = () => {
+      void (async () => {
+        submit.textContent = 'Sending…';
+        submit.setAttribute('disabled', 'true');
+
+        try {
+          const rect = element.getBoundingClientRect();
+          let screenshot: string | undefined;
+
+          try {
+            const canvas = await html2canvas(element as HTMLElement, {
+              logging: false,
+              useCORS: true,
+              scale: window.devicePixelRatio > 1 ? 1 : 1,
+            });
+            screenshot = canvas.toDataURL('image/png');
+          } catch {
+            /* screenshot optional */
+          }
+
+          const response = await fetch(`${apiUrl}/api/comments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tunnelId,
+              page: window.location.pathname + window.location.search,
+              selector: buildSelector(element),
+              x: rect.x + rect.width / 2,
+              y: rect.y + rect.height / 2,
+              message: textarea.value.trim(),
+              screenshot,
+              metadata: {
+                viewport: { width: window.innerWidth, height: window.innerHeight },
+                userAgent: navigator.userAgent,
+              },
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to send feedback');
+          }
+
+          backdrop.remove();
+          alert('Feedback sent. Thank you!');
+        } catch {
+          submit.textContent = 'Send feedback';
+          submit.removeAttribute('disabled');
+          alert('Could not send feedback. Please try again.');
+        }
+      })();
+    };
+  }
+
+  btn.onclick = () => {
+    if (pickMode) {
+      setPickMode(false);
+    } else {
+      setPickMode(true);
+    }
+  };
+
+  document.addEventListener('mousemove', (event) => {
+    if (!pickMode) return;
+    const target = event.target as Element | null;
+    if (!target || target === btn || target.closest('#shiplocal-modal-backdrop')) return;
+
+    if (highlighted !== target) {
+      clearHighlight();
+      highlighted = target;
+      target.classList.add('shiplocal-highlight');
+    }
+  });
+
+  document.addEventListener(
+    'click',
+    (event) => {
+      if (!pickMode) return;
+      const target = event.target as Element | null;
+      if (!target || target === btn || target.closest('#shiplocal-modal-backdrop')) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      openModal(target);
+    },
+    true,
+  );
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
