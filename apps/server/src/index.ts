@@ -1,4 +1,8 @@
-import 'dotenv/config';
+// In production (Docker/VPS), env vars are provided by the runtime.
+// Only load dotenv for local development.
+if (process.env['NODE_ENV'] !== 'production') {
+  await import('dotenv/config');
+}
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
