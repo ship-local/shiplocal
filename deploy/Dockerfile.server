@@ -34,7 +34,9 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/server/package.json apps/server/
 COPY packages/shared/package.json packages/shared/
 COPY packages/feedback-overlay/package.json packages/feedback-overlay/
-RUN pnpm install --frozen-lockfile --prod --ignore-scripts --filter @shiplocal/server...
+# Include Prisma CLI in the runtime image so we can run `prisma migrate deploy`
+# inside the running container (required for production deploys).
+RUN pnpm install --frozen-lockfile --ignore-scripts --filter @shiplocal/server...
 
 COPY --from=build /app/apps/server/dist ./apps/server/dist
 COPY --from=build /app/apps/server/prisma ./apps/server/prisma
