@@ -8,11 +8,17 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY apps/server/package.json apps/server/
 COPY packages/shared/package.json packages/shared/
 COPY packages/feedback-overlay/package.json packages/feedback-overlay/
-RUN pnpm install --frozen-lockfile --filter @shiplocal/server...
+# During image build we don't have the Prisma schema copied yet, but pnpm
+# runs workspace postinstall hooks (which run prisma generate). Skip scripts
+# here and generate later after `COPY . .`.
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Now that the full repo is present (including prisma/schema.prisma), run a normal
+# install so platform binaries (esbuild) and Prisma generate can run safely.
+RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @shiplocal/shared build \
  && pnpm --filter @shiplocal/feedback-overlay build \
  && pnpm --filter @shiplocal/server build \
