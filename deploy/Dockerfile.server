@@ -28,17 +28,11 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Install production dependencies in the final image so runtime resolution is stable
-# (pnpm workspaces use symlinks; copying node_modules alone can miss required packages).
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/server/package.json apps/server/
-COPY packages/shared/package.json packages/shared/
-COPY packages/feedback-overlay/package.json packages/feedback-overlay/
-# Include Prisma CLI in the runtime image so we can run `prisma migrate deploy`
-# inside the running container (required for production deploys).
-RUN pnpm install --frozen-lockfile --ignore-scripts --filter @shiplocal/server...
+# Copy fully-installed dependencies from build stage (includes Prisma CLI and all runtime deps).
+COPY --from=build /app/node_modules ./node_modules
 
 COPY --from=build /app/apps/server/dist ./apps/server/dist
+COPY --from=build /app/apps/server/package.json ./apps/server/package.json
 COPY --from=build /app/apps/server/prisma ./apps/server/prisma
 COPY --from=build /app/apps/server/prisma.config.ts ./apps/server/
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
