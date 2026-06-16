@@ -30,15 +30,19 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Copy fully-installed dependencies from build stage (includes Prisma CLI and all runtime deps).
-# pnpm workspaces may place some bins in per-package node_modules too, so copy both.
+# Copy pnpm workspace node_modules (root + per-package). Workspace deps like `zod`
+# for @shiplocal/shared live under packages/shared/node_modules, not only at root.
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/apps/server/node_modules ./apps/server/node_modules
+COPY --from=build /app/packages/shared/node_modules ./packages/shared/node_modules
 
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY --from=build /app/apps/server/dist ./apps/server/dist
 COPY --from=build /app/apps/server/package.json ./apps/server/package.json
 COPY --from=build /app/apps/server/prisma ./apps/server/prisma
 COPY --from=build /app/apps/server/prisma.config.ts ./apps/server/
+COPY --from=build /app/apps/server/src/generated ./apps/server/src/generated
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
 COPY --from=build /app/packages/feedback-overlay/dist ./packages/feedback-overlay/dist

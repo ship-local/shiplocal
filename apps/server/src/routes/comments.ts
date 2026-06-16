@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { FastifyInstance } from 'fastify';
 import type { Prisma } from '../generated/prisma/client.js';
 import { createCommentSchema } from '@shiplocal/shared';
@@ -7,7 +8,10 @@ import { prisma } from '../db.js';
 import { requireAuth } from '../auth/middleware.js';
 import { getTunnelManager } from '../tunnel/manager.js';
 
-const OVERLAY_SCRIPT_PATH = join(process.cwd(), '../../packages/feedback-overlay/dist/overlay.js');
+const OVERLAY_SCRIPT_PATH = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../../packages/feedback-overlay/dist/overlay.js',
+);
 
 let overlayScriptCache: string | null = null;
 
