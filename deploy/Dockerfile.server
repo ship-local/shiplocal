@@ -24,15 +24,24 @@ RUN pnpm --filter @shiplocal/shared build \
  && pnpm --filter @shiplocal/server build \
  && pnpm --filter @shiplocal/server db:generate
 
-FROM node:22-alpine AS runner
+FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Install production dependencies in the final image so runtime resolution is stable
+# (pnpm workspaces use symlinks; copying node_modules alone can miss required packages).
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/server/package.json apps/server/
+COPY packages/shared/package.json packages/shared/
+COPY packages/feedback-overlay/package.json packages/feedback-overlay/
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts --filter @shiplocal/server...
+
 COPY --from=build /app/apps/server/dist ./apps/server/dist
-COPY --from=build /app/apps/server/package.json ./apps/server/
 COPY --from=build /app/apps/server/prisma ./apps/server/prisma
 COPY --from=build /app/apps/server/prisma.config.ts ./apps/server/
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
 COPY --from=build /app/packages/feedback-overlay/dist ./packages/feedback-overlay/dist
-COPY --from=build /app/node_modules ./node_modules
+
 EXPOSE 4000
 CMD ["node", "apps/server/dist/index.js"]
