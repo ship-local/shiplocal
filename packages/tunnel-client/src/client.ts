@@ -11,6 +11,7 @@ export interface TunnelClientOptions {
   serverUrl: string;
   localPort: number;
   token?: string;
+  password?: string;
   onRegistered?: (info: RegisteredMessage) => void;
   onDisconnect?: () => void;
   onReconnecting?: (attempt: number) => void;
@@ -170,6 +171,7 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
           type: 'register',
           localPort: options.localPort,
           token: options.token,
+          ...(options.password ? { password: options.password } : {}),
         }),
       );
     });

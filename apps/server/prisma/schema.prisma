@@ -43,15 +43,16 @@ model Project {
 }
 
 model Tunnel {
-  id        String       @id @default(cuid())
-  projectId String
-  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  subdomain String       @unique
-  port      Int
-  status    TunnelStatus @default(OFFLINE)
-  createdAt DateTime     @default(now())
-  expiresAt DateTime?
-  comments  Comment[]
+  id           String       @id @default(cuid())
+  projectId    String
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  subdomain    String       @unique
+  port         Int
+  status       TunnelStatus @default(OFFLINE)
+  passwordHash String?
+  createdAt    DateTime     @default(now())
+  expiresAt    DateTime?
+  comments     Comment[]
 
   @@index([projectId])
 }

@@ -43,7 +43,16 @@ function signJwt(
 }
 
 export function registerAuthRoutes(app: FastifyInstance): void {
-  app.post('/api/auth/register', async (request, reply) => {
+  const authRateLimit = {
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: '1 minute',
+      },
+    },
+  };
+
+  app.post('/api/auth/register', authRateLimit, async (request, reply) => {
     const body = registerSchema.parse(request.body);
 
     const existing = await prisma.user.findUnique({ where: { email: body.email } });
@@ -80,7 +89,7 @@ export function registerAuthRoutes(app: FastifyInstance): void {
     });
   });
 
-  app.post('/api/auth/login', async (request, reply) => {
+  app.post('/api/auth/login', authRateLimit, async (request, reply) => {
     const body = loginSchema.parse(request.body);
 
     const user = await prisma.user.findUnique({ where: { email: body.email } });

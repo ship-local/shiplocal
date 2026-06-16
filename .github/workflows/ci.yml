@@ -13,6 +13,9 @@ concurrency:
 jobs:
   lint-and-typecheck:
     runs-on: ubuntu-latest
+    env:
+      # Needed for prisma.config.ts during `prisma generate` (also runs in postinstall).
+      DATABASE_URL: postgresql://shiplocal:shiplocal@localhost:5432/shiplocal?schema=public
 
     steps:
       - name: Checkout

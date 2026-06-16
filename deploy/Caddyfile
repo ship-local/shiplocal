@@ -1,0 +1,16 @@
+# Replace shiplocal.app with your domain.
+# Wildcard TLS requires DNS challenge — see https://caddyserver.com/docs/automatic-https#dns-challenge
+
+{
+	email you@example.com
+}
+
+# Dashboard
+app.shiplocal.app {
+	reverse_proxy localhost:3001
+}
+
+# API + tunnel server (wildcard subdomains for previews)
+shiplocal.app, *.shiplocal.app {
+	reverse_proxy localhost:4000
+}

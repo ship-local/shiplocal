@@ -36,8 +36,18 @@ const NOUNS = [
   'zebra',
 ] as const;
 
+function secureRandomInt(max: number): number {
+  const array = new Uint32Array(1);
+  globalThis.crypto.getRandomValues(array);
+  const value = array[0];
+  if (value === undefined) {
+    throw new Error('secureRandomInt failed');
+  }
+  return value % max;
+}
+
 function randomItem<T>(items: readonly T[]): T {
-  const index = Math.floor(Math.random() * items.length);
+  const index = secureRandomInt(items.length);
   const item = items[index];
   if (item === undefined) {
     throw new Error('randomItem called with empty array');

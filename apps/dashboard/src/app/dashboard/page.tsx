@@ -185,6 +185,7 @@ export default function DashboardPage() {
                   <div>
                     <p style={{ fontWeight: 500 }}>
                       {tunnel.isLive ? '🟢' : '🔴'} {tunnel.projectName}
+                      {tunnel.passwordProtected ? ' 🔒' : ''}
                     </p>
                     <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
                       Port {String(tunnel.port)} · {tunnel.subdomain}

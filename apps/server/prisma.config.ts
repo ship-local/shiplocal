@@ -7,6 +7,14 @@ export default defineConfig({
     path: 'prisma/migrations',
   },
   datasource: {
-    url: env('DATABASE_URL'),
+    // Prisma client generation runs in CI during `pnpm install`.
+    // For `prisma generate`, Prisma only needs a syntactically valid URL.
+    // Runtime connections are still enforced by `apps/server/src/db.ts`.
+    url:
+      process.env['DATABASE_URL'] ??
+      env(
+        'DATABASE_URL',
+        'postgresql://shiplocal:shiplocal@localhost:5432/shiplocal?schema=public',
+      ),
   },
 });

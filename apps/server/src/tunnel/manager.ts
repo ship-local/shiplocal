@@ -28,6 +28,7 @@ export interface TunnelSession {
   publicUrl: string;
   expiresAt: Date;
   lastPongAt: number;
+  passwordHash: string | null;
   pendingRequests: Map<string, PendingRequest>;
 }
 
@@ -40,6 +41,7 @@ export interface CreateSessionInput {
   subdomain: string;
   publicUrl: string;
   expiresAt: Date;
+  passwordHash?: string | null;
 }
 
 export interface TunnelManagerOptions {
@@ -108,6 +110,7 @@ export class TunnelManager {
       publicUrl: input.publicUrl,
       expiresAt: input.expiresAt,
       lastPongAt: Date.now(),
+      passwordHash: input.passwordHash ?? null,
       pendingRequests: new Map(),
     };
 

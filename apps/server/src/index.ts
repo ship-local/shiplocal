@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
+import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
 import Fastify from 'fastify';
 import {
@@ -13,7 +14,7 @@ import { registerCommentRoutes } from './routes/comments.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerProjectRoutes } from './routes/projects.js';
 import { registerTunnelRoutes } from './routes/tunnels.js';
-import { initTunnelManager } from './tunnel/manager.js';
+import { initTunnelManager, getTunnelManager } from './tunnel/manager.js';
 import { registerTunnelHttpProxy, registerTunnelWebSocket } from './tunnel/routes.js';
 
 const port = Number.parseInt(process.env['PORT'] ?? String(DEFAULT_SERVER_PORT), 10);
@@ -30,6 +31,12 @@ const app = Fastify({
 await app.register(cors, {
   origin: true,
   credentials: true,
+});
+
+await app.register(rateLimit, {
+  global: true,
+  max: 200,
+  timeWindow: '1 minute',
 });
 
 await app.register(jwt, {
@@ -71,13 +78,41 @@ app.get('/api/status', async () => {
 
   return {
     service: 'shiplocal-server',
-    version: '0.0.2',
+    version: '0.1.0',
     projects: projectCount,
     tunnels: tunnelCount,
   };
 });
 
 registerTunnelHttpProxy(app, tunnelDomain);
+
+let shuttingDown = false;
+
+const shutdown = async (signal: string) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  app.log.info({ signal }, 'Shutting down gracefully');
+
+  try {
+    getTunnelManager().destroy();
+    await app.close();
+    await prisma.$disconnect();
+    app.log.info('Shutdown complete');
+    process.exit(0);
+  } catch (err) {
+    app.log.error({ err }, 'Error during shutdown');
+    process.exit(1);
+  }
+};
+
+process.on('SIGINT', () => {
+  void shutdown('SIGINT');
+});
+
+process.on('SIGTERM', () => {
+  void shutdown('SIGTERM');
+});
 
 const start = async () => {
   try {

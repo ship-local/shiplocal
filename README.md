@@ -2,92 +2,104 @@
 
 > From localhost to client-ready.
 
-Share localhost with clients in seconds and collect visual feedback.
+Share localhost with clients in seconds and collect visual feedback on the live preview.
 
-## Prerequisites
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-- **Node.js 20+** ([nvm](https://github.com/nvm-sh/nvm): `nvm use`)
-- **pnpm 9+** (`corepack enable && corepack prepare pnpm@9.15.9 --activate`)
-- **Docker** (for Postgres and Redis)
+## Features
 
-## Quick start
+- **Instant tunnels** — expose any local port via a public URL
+- **Client feedback** — 💬 overlay for element-level comments + screenshots
+- **Dashboard** — manage tunnels, view feedback, stop/restart sessions
+- **Password-protected previews** — `shiplocal 3000 --password secret`
+- **Self-hostable** — run on your own VPS (see `docs/self-hosting.md`)
+
+## Quick start (local)
 
 ```bash
-# 1. Install dependencies
 pnpm install
-
-# 2. Start Postgres (+ Redis)
-docker compose -f docker/docker-compose.yml up -d
-
-# 3. Configure environment
+pnpm docker:up
 cp apps/server/.env.example apps/server/.env
 cp apps/dashboard/.env.example apps/dashboard/.env.local
-
-# 4. Run database migrations
 pnpm db:migrate
-
-# 5. Start dev servers (API + dashboard)
 pnpm dev
 ```
 
-Open:
+Open http://localhost:3001 — full guide in [docs/quickstart.md](docs/quickstart.md).
 
-- Dashboard: http://localhost:3001
-- API health: http://localhost:4000/health
+## CLI
 
-## Scripts
+```bash
+pnpm tunnel login
+pnpm tunnel 3000                  # expose port 3000
+pnpm tunnel 3000 --password demo  # password-protected preview
+```
 
-| Command           | Description              |
-| ----------------- | ------------------------ |
-| `pnpm dev`        | Start server + dashboard |
-| `pnpm build`      | Build all packages       |
-| `pnpm lint`       | Lint all packages        |
-| `pnpm typecheck`  | Typecheck all packages   |
-| `pnpm db:migrate` | Run Prisma migrations    |
-| `pnpm db:studio`  | Open Prisma Studio       |
+For global install (after npm publish): `npm install -g shiplocal`
+
+## Documentation
+
+| Doc                                          | Description               |
+| -------------------------------------------- | ------------------------- |
+| [docs/quickstart.md](docs/quickstart.md)     | Zero to first tunnel      |
+| [docs/self-hosting.md](docs/self-hosting.md) | Run on your own server    |
+| [docs/deploy.md](docs/deploy.md)             | Production VPS deployment |
+| [docs/publish-cli.md](docs/publish-cli.md)   | npm publish checklist     |
 
 ## Project structure
 
 ```
 apps/
-  dashboard/   Next.js dashboard
-  server/      Fastify API + tunnel server
+  dashboard/          Next.js dashboard + landing
+  server/             Fastify API + tunnel server
 packages/
-  cli/         shiplocal CLI
-  shared/      Shared types and validation
-  tunnel-client/  WebSocket tunnel client
+  cli/                shiplocal CLI
+  feedback-overlay/   Client 💬 widget
+  shared/             Types, protocol, validation
+  tunnel-client/      WebSocket tunnel client
+deploy/               Caddy + Docker for production
+docs/                 Guides
 ```
 
-## CLI
+## Scripts
 
-```bash
-# 1. Log in (saves token to ~/.shiplocal/config.json)
-pnpm --filter shiplocal build
-node packages/cli/dist/index.js login
+| Command            | Description                 |
+| ------------------ | --------------------------- |
+| `pnpm dev`         | Start server + dashboard    |
+| `pnpm build`       | Build all packages          |
+| `pnpm tunnel 3000` | Start CLI tunnel (shortcut) |
+| `pnpm db:migrate`  | Run Prisma migrations       |
+| `pnpm docker:up`   | Start Postgres + Redis      |
 
-# 2. Start your local app on port 3000
+## Production deploy
 
-# 3. Start ShipLocal server
-pnpm --filter @shiplocal/server dev
+1. Configure env (see `apps/server/.env.example`)
+2. `pnpm build && pnpm db:migrate`
+3. `docker compose -f docker/docker-compose.prod.yml up -d`
+4. Point Caddy at ports 3001/4000 (`deploy/Caddyfile`)
 
-# 4. Expose localhost
-node packages/cli/dist/index.js 3000
-```
-
-You'll get a public URL like `http://happy-lion.localhost:4000`. Manage tunnels at http://localhost:3001/dashboard.
-
-For local development, set `SHIPLOCAL_DOMAIN=localhost` in `apps/server/.env`.
+Details: [docs/deploy.md](docs/deploy.md)
 
 ## Troubleshooting
 
-### `P1010: User was denied access` on `pnpm db:migrate`
+### Database connection (`P1010`)
 
-1. **Start Docker first** — `pnpm docker:up` (Docker Desktop must be running).
-2. **Port conflict** — ShipLocal Postgres runs on host port **5433** (not 5432) so it does not clash with a local Postgres install. Ensure `apps/server/.env` uses:
-   ```
-   DATABASE_URL="postgresql://shiplocal:shiplocal@localhost:5433/shiplocal?schema=public"
-   ```
-3. **Restart containers** after changing ports:
-   ```bash
-   pnpm docker:down && pnpm docker:up
-   ```
+ShipLocal Postgres runs on host port **5433** to avoid conflicts:
+
+```
+DATABASE_URL="postgresql://shiplocal:shiplocal@localhost:5433/shiplocal?schema=public"
+```
+
+Run `pnpm docker:up` before migrations.
+
+### Tunnel shows blank page
+
+Ensure your local app is running on the port passed to the CLI. The tunnel forwards to `127.0.0.1:<port>`.
+
+### `shiplocal: command not found`
+
+Use `pnpm tunnel` from the repo root, or `pnpm link --global --filter shiplocal` after building.
+
+## License
+
+MIT — see [LICENSE](LICENSE). Cloud-specific features may remain proprietary per open-core strategy.

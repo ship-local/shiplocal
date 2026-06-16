@@ -28,45 +28,56 @@ export function registerCommentRoutes(app: FastifyInstance): void {
     }
   });
 
-  app.post('/api/comments', async (request, reply) => {
-    const body = createCommentSchema.parse(request.body);
-
-    const tunnel = await prisma.tunnel.findUnique({
-      where: { id: body.tunnelId },
-    });
-
-    if (!tunnel) {
-      await reply.code(404).send({ error: 'Tunnel not found' });
-      return;
-    }
-
-    const manager = getTunnelManager();
-    const live = manager.getByDbTunnelId(tunnel.id);
-    if (!live) {
-      await reply.code(400).send({ error: 'Tunnel is offline' });
-      return;
-    }
-
-    const comment = await prisma.comment.create({
-      data: {
-        tunnelId: tunnel.id,
-        page: body.page,
-        selector: body.selector,
-        x: body.x,
-        y: body.y,
-        message: body.message,
-        screenshot: body.screenshot,
-        ...(body.metadata ? { metadata: body.metadata as Prisma.InputJsonValue } : {}),
+  app.post(
+    '/api/comments',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
       },
-    });
+    },
+    async (request, reply) => {
+      const body = createCommentSchema.parse(request.body);
 
-    await reply.code(201).send({
-      comment: {
-        id: comment.id,
-        createdAt: comment.createdAt.toISOString(),
-      },
-    });
-  });
+      const tunnel = await prisma.tunnel.findUnique({
+        where: { id: body.tunnelId },
+      });
+
+      if (!tunnel) {
+        await reply.code(404).send({ error: 'Tunnel not found' });
+        return;
+      }
+
+      const manager = getTunnelManager();
+      const live = manager.getByDbTunnelId(tunnel.id);
+      if (!live) {
+        await reply.code(400).send({ error: 'Tunnel is offline' });
+        return;
+      }
+
+      const comment = await prisma.comment.create({
+        data: {
+          tunnelId: tunnel.id,
+          page: body.page,
+          selector: body.selector,
+          x: body.x,
+          y: body.y,
+          message: body.message,
+          screenshot: body.screenshot,
+          ...(body.metadata ? { metadata: body.metadata as Prisma.InputJsonValue } : {}),
+        },
+      });
+
+      await reply.code(201).send({
+        comment: {
+          id: comment.id,
+          createdAt: comment.createdAt.toISOString(),
+        },
+      });
+    },
+  );
 
   app.get(
     '/api/comments',

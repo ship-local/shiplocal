@@ -46,6 +46,7 @@ export function registerTunnelRoutes(
             createdAt: tunnel.createdAt.toISOString(),
             expiresAt: tunnel.expiresAt?.toISOString() ?? null,
             isLive: Boolean(live),
+            passwordProtected: Boolean(tunnel.passwordHash),
           };
         }),
       });

@@ -10,7 +10,7 @@ import { isLocalPortOpen } from './local-port.js';
 
 const program = new Command();
 
-program.name('shiplocal').description('Share localhost with clients in seconds').version('0.0.2');
+program.name('shiplocal').description('Share localhost with clients in seconds').version('0.1.0');
 
 program
   .command('login')
@@ -56,8 +56,9 @@ program
 
 program
   .argument('[port]', 'Local port to expose', String(DEFAULT_TUNNEL_PORT))
+  .option('-p, --password <password>', 'Require a password to open the public URL')
   .description('Start a tunnel to your local server')
-  .action(async (portArg: string) => {
+  .action(async (portArg: string, options: { password?: string }) => {
     const port = Number.parseInt(portArg, 10);
 
     if (Number.isNaN(port) || port < 1 || port > 65535) {
@@ -93,6 +94,7 @@ program
       serverUrl,
       localPort: port,
       token,
+      password: options.password,
       onRegistered: (info) => {
         if (!printed) {
           console.log('');
@@ -100,6 +102,9 @@ program
           console.log('');
           console.log(`Local:   http://localhost:${String(port)}`);
           console.log(`Public:  ${info.publicUrl}`);
+          if (options.password) {
+            console.log(`Password: ${options.password} (share with your client)`);
+          }
           console.log('');
           console.log('Share this with your client.');
           console.log('Press Ctrl+C to stop.');

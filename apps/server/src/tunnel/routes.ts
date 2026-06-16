@@ -10,12 +10,21 @@ import {
   TUNNEL_WS_PATH,
 } from '@shiplocal/shared';
 import { resolveUserFromApiToken } from '../routes/auth.js';
+import { hashPassword } from '../auth/crypto.js';
 import { prisma } from '../db.js';
 import { getTunnelManager } from './manager.js';
 import { injectFeedbackOverlay, isHtmlResponse } from '../routes/comments.js';
+import {
+  UNLOCK_PATH,
+  handleTunnelUnlock,
+  hasTunnelAccess,
+  renderPasswordGateHtml,
+} from './password.js';
 
 const API_PUBLIC_URL = process.env['API_PUBLIC_URL'] ?? 'http://localhost:4000';
 const FEEDBACK_OVERLAY_ENABLED = process.env['FEEDBACK_OVERLAY_ENABLED'] !== 'false';
+const JWT_SECRET = process.env['JWT_SECRET'] ?? 'dev-secret-change-me';
+const IS_PRODUCTION = process.env['NODE_ENV'] === 'production';
 
 function rawDataToString(raw: unknown): string {
   if (typeof raw === 'string') return raw;
@@ -121,6 +130,7 @@ export function registerTunnelWebSocket(app: FastifyInstance): void {
             const subdomain = manager.generateSubdomain();
             const expiresAt = manager.getExpiryDate();
             const publicUrl = manager.buildPublicUrl(subdomain);
+            const passwordHash = message.password ? await hashPassword(message.password) : null;
 
             const dbTunnel = await prisma.tunnel.create({
               data: {
@@ -129,6 +139,7 @@ export function registerTunnelWebSocket(app: FastifyInstance): void {
                 port: message.localPort,
                 status: 'ONLINE',
                 expiresAt,
+                passwordHash,
               },
             });
 
@@ -141,6 +152,7 @@ export function registerTunnelWebSocket(app: FastifyInstance): void {
               subdomain,
               publicUrl,
               expiresAt,
+              passwordHash,
             });
 
             socket.send(
@@ -212,6 +224,43 @@ async function proxyTunnelRequest(
   const requestPath = pathMatch?.path ?? request.url.split('?')[0] ?? '/';
   const query = request.url.includes('?') ? (request.url.split('?')[1] ?? '') : '';
 
+  if (session.passwordHash) {
+    if (requestPath === UNLOCK_PATH) {
+      let body: Buffer = Buffer.alloc(0);
+      if (request.method === 'POST') {
+        try {
+          body = await collectBody(request);
+        } catch {
+          await reply.code(413).send({ error: 'Request body too large' });
+          return;
+        }
+      }
+
+      const handled = await handleTunnelUnlock(
+        {
+          ...request,
+          body:
+            body.length > 0
+              ? Object.fromEntries(new URLSearchParams(body.toString('utf8')))
+              : undefined,
+        },
+        reply,
+        session.passwordHash,
+        session.dbTunnelId,
+        session.subdomain,
+        JWT_SECRET,
+        IS_PRODUCTION,
+      );
+
+      if (handled) return;
+    }
+
+    if (!hasTunnelAccess(request, session.dbTunnelId, session.subdomain, JWT_SECRET)) {
+      await reply.type('text/html').send(renderPasswordGateHtml());
+      return;
+    }
+  }
+
   let body: Buffer;
   try {
     body =
@@ -224,6 +273,7 @@ async function proxyTunnelRequest(
   }
 
   try {
+    const startedAt = Date.now();
     const response = await manager.forwardRequest(session, {
       type: 'request',
       id: randomUUID(),
@@ -233,6 +283,18 @@ async function proxyTunnelRequest(
       headers: flattenHeaders(request.headers),
       body: body.length > 0 ? encodeBody(body) : undefined,
     });
+
+    request.log.info(
+      {
+        subdomain: session.subdomain,
+        tunnelId: session.dbTunnelId,
+        method: request.method,
+        path: requestPath,
+        status: response.status,
+        durationMs: Date.now() - startedAt,
+      },
+      'tunnel request',
+    );
 
     applyResponseHeaders(reply, response.headers);
     let responseBody = decodeBody(response.body);

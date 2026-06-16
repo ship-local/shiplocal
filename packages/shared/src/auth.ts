@@ -50,6 +50,7 @@ export interface TunnelSummary {
   createdAt: string;
   expiresAt: string | null;
   isLive: boolean;
+  passwordProtected: boolean;
 }
 
 export interface CommentSummary {
