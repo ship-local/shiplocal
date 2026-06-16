@@ -1,6 +1,8 @@
 # Multi-stage build for ShipLocal API server
 FROM node:22-alpine AS base
+ENV CI=1
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+RUN pnpm config set store-dir /pnpm/store --global
 WORKDIR /app
 
 FROM base AS deps
@@ -16,9 +18,9 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Now that the full repo is present (including prisma/schema.prisma), run a normal
-# install so platform binaries (esbuild) and Prisma generate can run safely.
-RUN pnpm install --frozen-lockfile
+# Now that the full repo is present (including prisma/schema.prisma), do a clean install
+# with scripts enabled so platform binaries (esbuild) and Prisma are set up correctly.
+RUN rm -rf node_modules && pnpm install --frozen-lockfile
 RUN pnpm --filter @shiplocal/shared build \
  && pnpm --filter @shiplocal/feedback-overlay build \
  && pnpm --filter @shiplocal/server build \
@@ -29,7 +31,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Copy fully-installed dependencies from build stage (includes Prisma CLI and all runtime deps).
+# pnpm workspaces may place some bins in per-package node_modules too, so copy both.
 COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/apps/server/node_modules ./apps/server/node_modules
 
 COPY --from=build /app/apps/server/dist ./apps/server/dist
 COPY --from=build /app/apps/server/package.json ./apps/server/package.json
