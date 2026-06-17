@@ -1,6 +1,6 @@
 {
   "name": "shiplocal",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Share localhost with clients in seconds",
   "type": "module",
   "license": "MIT",
@@ -25,7 +25,8 @@
     "shiplocal": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "publishConfig": {
     "access": "public"

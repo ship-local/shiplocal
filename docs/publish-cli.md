@@ -25,7 +25,7 @@ npm whoami
 pnpm publish:cli
 ```
 
-This builds workspace deps, bundles the CLI, and publishes `shiplocal@0.1.0` to npm.
+This builds workspace deps, bundles the CLI, and publishes `shiplocal` to npm.
 
 ## Dry run
 
