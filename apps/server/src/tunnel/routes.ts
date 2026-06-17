@@ -191,7 +191,7 @@ export function registerTunnelWebSocket(app: FastifyInstance): void {
   });
 }
 
-async function proxyTunnelRequest(
+export async function proxyTunnelRequest(
   request: FastifyRequest,
   reply: FastifyReply,
   domain: string,

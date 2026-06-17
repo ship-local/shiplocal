@@ -12,6 +12,7 @@ import {
   DEFAULT_SERVER_PORT,
   DEFAULT_TUNNEL_DOMAIN,
   DEFAULT_TUNNEL_EXPIRY_MS,
+  parseTunnelHost,
 } from '@shiplocal/shared';
 import { checkDatabaseConnection, prisma } from './db.js';
 import { registerCommentRoutes } from './routes/comments.js';
@@ -19,11 +20,16 @@ import { registerAuthRoutes } from './routes/auth.js';
 import { registerProjectRoutes } from './routes/projects.js';
 import { registerTunnelRoutes } from './routes/tunnels.js';
 import { initTunnelManager, getTunnelManager } from './tunnel/manager.js';
-import { registerTunnelHttpProxy, registerTunnelWebSocket } from './tunnel/routes.js';
+import {
+  registerTunnelHttpProxy,
+  registerTunnelWebSocket,
+  proxyTunnelRequest,
+} from './tunnel/routes.js';
 
 const port = Number.parseInt(process.env['PORT'] ?? String(DEFAULT_SERVER_PORT), 10);
 const host = process.env['HOST'] ?? '0.0.0.0';
 const tunnelDomain = process.env['SHIPLOCAL_DOMAIN'] ?? DEFAULT_TUNNEL_DOMAIN;
+const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:3001';
 const tunnelExpiryMs = process.env['TUNNEL_EXPIRY_HOURS']
   ? Number.parseInt(process.env['TUNNEL_EXPIRY_HOURS'], 10) * 60 * 60 * 1000
   : DEFAULT_TUNNEL_EXPIRY_MS;
@@ -86,6 +92,23 @@ app.get('/api/status', async () => {
     projects: projectCount,
     tunnels: tunnelCount,
   };
+});
+
+app.get('/', async (request, reply) => {
+  const subdomain = parseTunnelHost(request.headers.host, tunnelDomain);
+  if (subdomain) {
+    await proxyTunnelRequest(request, reply, tunnelDomain);
+    return;
+  }
+
+  const hostHeader = request.headers.host?.split(':')[0]?.toLowerCase();
+  const baseDomain = tunnelDomain.split(':')[0]?.toLowerCase();
+  if (hostHeader === baseDomain) {
+    await reply.redirect(dashboardUrl);
+    return;
+  }
+
+  await reply.code(404).send({ error: 'Not found' });
 });
 
 registerTunnelHttpProxy(app, tunnelDomain);

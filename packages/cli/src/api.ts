@@ -1,4 +1,4 @@
-import { resolveApiUrl } from './config.js';
+import { resolveApiUrlAsync } from './config.js';
 
 function isConnectionRefused(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
@@ -34,18 +34,19 @@ export function formatServerConnectionError(apiUrl: string, err: unknown): strin
 export async function postJson(
   path: string,
   body: unknown,
-  apiUrl = resolveApiUrl(),
+  apiUrl?: string,
 ): Promise<{ response: Response; data: unknown }> {
+  const baseUrl = apiUrl ?? (await resolveApiUrlAsync());
   let response: Response;
 
   try {
-    response = await fetch(`${apiUrl}${path}`, {
+    response = await fetch(`${baseUrl}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
   } catch (err) {
-    throw new Error(formatServerConnectionError(apiUrl, err));
+    throw new Error(formatServerConnectionError(baseUrl, err));
   }
 
   const data = await response.json().catch(() => ({}));

@@ -38,6 +38,21 @@ export function resolveApiUrl(): string {
   return process.env['SHIPLOCAL_API_URL'] ?? 'http://localhost:4000';
 }
 
+export const DEFAULT_CLOUD_API_URL = 'https://shiplocal.cloud';
+
+export async function resolveApiUrlAsync(): Promise<string> {
+  if (process.env['SHIPLOCAL_API_URL']) {
+    return process.env['SHIPLOCAL_API_URL'];
+  }
+
+  const config = await loadConfig();
+  if (config?.apiUrl) {
+    return config.apiUrl;
+  }
+
+  return DEFAULT_CLOUD_API_URL;
+}
+
 export async function resolveToken(): Promise<string | undefined> {
   if (process.env['SHIPLOCAL_TOKEN']) return process.env['SHIPLOCAL_TOKEN'];
   const config = await loadConfig();

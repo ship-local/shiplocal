@@ -1,16 +1,24 @@
-# Replace shiplocal.app with your domain.
-# Wildcard TLS requires DNS challenge — see https://caddyserver.com/docs/automatic-https#dns-challenge
+# ShipLocal production — replace email and domains if needed.
+# Wildcard TLS requires Cloudflare DNS challenge on the Caddy build.
 
 {
-	email you@example.com
+	email kenny@shiplocal.cloud
+}
+
+(tls_cloudflare) {
+	tls {
+		dns cloudflare {env.CF_API_TOKEN}
+	}
 }
 
 # Dashboard
-app.shiplocal.app {
-	reverse_proxy localhost:3001
+app.shiplocal.cloud {
+	import tls_cloudflare
+	reverse_proxy 127.0.0.1:3001
 }
 
-# API + tunnel server (wildcard subdomains for previews)
-shiplocal.app, *.shiplocal.app {
-	reverse_proxy localhost:4000
+# API + tunnel previews (wildcard subdomains)
+shiplocal.cloud, *.shiplocal.cloud {
+	import tls_cloudflare
+	reverse_proxy 127.0.0.1:4000
 }

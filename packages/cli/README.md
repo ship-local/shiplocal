@@ -20,15 +20,16 @@ Requires **Node.js 20+**.
 ### 1. Log in
 
 ```bash
-export SHIPLOCAL_API_URL=https://shiplocal.cloud
 shiplocal login
 ```
 
 Create an account at https://app.shiplocal.cloud if you don't have one.
 
+No `export` needed — the CLI defaults to **https://shiplocal.cloud** and saves your server URL when you log in.
+
 ### 2. Start your local app
 
-Run your project locally (Next.js, Vite, Rails, etc.) on a port — for example **3000**:
+Run your project locally on a port — for example **3000**:
 
 ```bash
 npm run dev
@@ -36,10 +37,7 @@ npm run dev
 
 ### 3. Open a tunnel
 
-In a second terminal:
-
 ```bash
-export SHIPLOCAL_API_URL=https://shiplocal.cloud
 shiplocal 3000
 ```
 
@@ -69,39 +67,44 @@ Clients open the public URL, click **💬**, pick an element, and leave feedback
 | `shiplocal 3000`                   | Tunnel local port 3000            |
 | `shiplocal 3000 --password secret` | Password-protect the preview URL  |
 
-## Environment variables
+## Environment variables (optional)
 
-| Variable            | Default                 | Description                                                   |
-| ------------------- | ----------------------- | ------------------------------------------------------------- |
-| `SHIPLOCAL_API_URL` | `http://localhost:4000` | API server URL. Use `https://shiplocal.cloud` for production. |
-| `SHIPLOCAL_TOKEN`   | —                       | API token (alternative to `shiplocal login`)                  |
+| Variable            | When to use                                                    |
+| ------------------- | -------------------------------------------------------------- |
+| `SHIPLOCAL_API_URL` | Self-hosted server or local dev (e.g. `http://localhost:4000`) |
+| `SHIPLOCAL_TOKEN`   | Skip `login` by providing an API token directly                |
 
-Credentials are saved to `~/.shiplocal/config.json`.
+Credentials are saved to `~/.shiplocal/config.json` including the API URL from your last login.
+
+**You do not need `export SHIPLOCAL_API_URL` for ShipLocal Cloud** — only set it if you use a custom server.
+
+### Local development against your own server
+
+```bash
+export SHIPLOCAL_API_URL=http://localhost:4000
+shiplocal login
+shiplocal 3000
+```
 
 ## Self-hosting
-
-To run your own ShipLocal server instead of ShipLocal Cloud, point `SHIPLOCAL_API_URL` at your server:
 
 ```bash
 export SHIPLOCAL_API_URL=https://your-server.example.com
 shiplocal login
 ```
 
-See the [self-hosting guide](https://github.com/ship-local/shiplocal/blob/main/docs/self-hosting.md) in the main repo.
+See the [self-hosting guide](https://github.com/ship-local/shiplocal/blob/main/docs/self-hosting.md).
 
 ## Troubleshooting
 
 **`command not found: shiplocal`**  
-Ensure npm global bin is on your PATH. Run `npm bin -g` and add that directory to your shell config.
+Run `npm bin -g` and add that directory to your PATH.
 
 **Blank page on public URL**  
 Make sure your local app is running on the port you passed to the CLI.
 
 **`Not authenticated`**  
 Run `shiplocal login` first.
-
-**Wrong server / login fails**  
-Check `SHIPLOCAL_API_URL` is set to `https://shiplocal.cloud` for production.
 
 ## Links
 

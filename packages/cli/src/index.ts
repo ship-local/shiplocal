@@ -4,20 +4,20 @@ import { stdin as input, stdout as output } from 'node:process';
 import { Command } from 'commander';
 import { DEFAULT_TUNNEL_PORT } from '@shiplocal/shared';
 import { createTunnelClient } from '@shiplocal/tunnel-client';
-import { clearConfig, resolveApiUrl, resolveToken, saveConfig } from './config.js';
+import { clearConfig, resolveApiUrlAsync, resolveToken, saveConfig } from './config.js';
 import { postJson } from './api.js';
 import { isLocalPortOpen } from './local-port.js';
 
 const program = new Command();
 
-program.name('shiplocal').description('Share localhost with clients in seconds').version('0.1.1');
+program.name('shiplocal').description('Share localhost with clients in seconds').version('0.1.2');
 
 program
   .command('login')
   .description('Authenticate with ShipLocal Cloud')
   .action(async () => {
     const rl = createInterface({ input, output });
-    const apiUrl = resolveApiUrl();
+    const apiUrl = await resolveApiUrlAsync();
 
     try {
       const email = await rl.question('Email: ');
@@ -66,7 +66,7 @@ program
       process.exit(1);
     }
 
-    const serverUrl = resolveApiUrl();
+    const serverUrl = await resolveApiUrlAsync();
     const token = await resolveToken();
 
     if (!token) {
@@ -130,7 +130,7 @@ program
     try {
       await client.connect();
     } catch (err) {
-      const apiUrl = resolveApiUrl();
+      const apiUrl = await resolveApiUrlAsync();
       const message =
         err instanceof Error && err.message.includes('ECONNREFUSED')
           ? [
