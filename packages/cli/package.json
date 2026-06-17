@@ -31,19 +31,21 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node build.mjs",
     "dev": "tsc -p tsconfig.json --watch",
     "lint": "eslint src/",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@shiplocal/shared": "workspace:*",
-    "@shiplocal/tunnel-client": "workspace:*",
-    "commander": "^14.0.0"
+    "commander": "^14.0.0",
+    "ws": "^8.18.2"
   },
   "devDependencies": {
+    "@shiplocal/shared": "workspace:*",
+    "@shiplocal/tunnel-client": "workspace:*",
     "@types/node": "^22.15.30",
+    "esbuild": "^0.25.0",
     "typescript": "^5.8.3"
   },
   "engines": {

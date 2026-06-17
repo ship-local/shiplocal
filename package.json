@@ -15,7 +15,7 @@
     "docker:up": "docker compose -f docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f docker/docker-compose.yml down",
     "tunnel": "node packages/cli/dist/index.js",
-    "publish:packages": "pnpm build && pnpm --filter @shiplocal/shared publish --access public --no-git-checks && pnpm --filter @shiplocal/tunnel-client publish --access public --no-git-checks && pnpm --filter shiplocal publish --access public --no-git-checks",
+    "publish:cli": "pnpm --filter @shiplocal/shared build && pnpm --filter @shiplocal/tunnel-client build && pnpm --filter shiplocal build && pnpm --filter shiplocal publish --access public --no-git-checks",
     "postinstall": "pnpm db:generate"
   },
   "devDependencies": {

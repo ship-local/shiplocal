@@ -1,20 +1,16 @@
 # Publishing the CLI to npm
 
-ShipLocal publishes **three packages** to npm:
+ShipLocal publishes **one package** to npm: `shiplocal`.
 
-| Package       | npm name                   |
-| ------------- | -------------------------- |
-| Shared types  | `@shiplocal/shared`        |
-| Tunnel client | `@shiplocal/tunnel-client` |
-| CLI           | `shiplocal`                |
-
-Users install only the CLI:
+The CLI is bundled with esbuild (shared + tunnel-client code inlined). Users only need:
 
 ```bash
 npm install -g shiplocal
 ```
 
-npm automatically installs `@shiplocal/shared` and `@shiplocal/tunnel-client` as dependencies.
+## Why not `@shiplocal/*` scoped packages?
+
+npm requires you to **own the `@shiplocal` organization** to publish scoped packages. The bundled CLI avoids that — only the unscoped name `shiplocal` is needed (and it's available).
 
 ## One-time setup
 
@@ -23,34 +19,24 @@ npm login
 npm whoami
 ```
 
-You need an npm account with permission to publish:
-
-- `shiplocal` (unscoped)
-- `@shiplocal/*` (scoped, public)
-
 ## Publish (from repo root)
 
 ```bash
-pnpm publish:packages
+pnpm publish:cli
 ```
 
-This will:
+This builds workspace deps, bundles the CLI, and publishes `shiplocal@0.1.0` to npm.
 
-1. Build all packages
-2. Publish `@shiplocal/shared@0.1.0`
-3. Publish `@shiplocal/tunnel-client@0.1.0`
-4. Publish `shiplocal@0.1.0` (workspace deps are rewritten to published versions)
-
-## Dry run (verify tarball before publishing)
+## Dry run
 
 ```bash
-pnpm build
-pnpm --filter @shiplocal/shared pack
-pnpm --filter @shiplocal/tunnel-client pack
-pnpm --filter shiplocal pack
+pnpm --filter @shiplocal/shared build
+pnpm --filter @shiplocal/tunnel-client build
+pnpm --filter shiplocal build
+cd packages/cli && pnpm pack
 ```
 
-Inspect the generated `.tgz` files in each package directory.
+Inspect `shiplocal-0.1.0.tgz` — it should contain only `dist/` and depend on `ws` only.
 
 ## After publish — user install
 
@@ -63,18 +49,11 @@ shiplocal 3000
 
 ## Version bumps
 
-Before the next release, bump versions in:
-
-- `packages/shared/package.json`
-- `packages/tunnel-client/package.json`
-- `packages/cli/package.json`
-
-Keep all three on the same semver for simplicity.
+Bump `packages/cli/package.json` version before each release, then run `pnpm publish:cli` again.
 
 ## Pre-publish checklist
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm build` pass
-- [ ] No secrets in published files (`files` only includes `dist/`)
-- [ ] Version bumped
+- [ ] `pnpm typecheck && pnpm lint` pass
+- [ ] `pnpm --filter shiplocal build` succeeds
 - [ ] `npm whoami` shows correct account
-- [ ] Test with `npm pack` tarballs locally if needed
+- [ ] Version bumped if re-publishing

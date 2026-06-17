@@ -1,6 +1,7 @@
 {
   "name": "@shiplocal/tunnel-client",
   "version": "0.1.0",
+  "private": true,
   "description": "WebSocket tunnel client for ShipLocal",
   "type": "module",
   "license": "MIT",

@@ -1,6 +1,7 @@
 {
   "name": "@shiplocal/shared",
   "version": "0.1.0",
+  "private": true,
   "description": "Shared types and protocol for ShipLocal",
   "type": "module",
   "license": "MIT",
