@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { WebSocket } from 'ws';
 import {
   DEFAULT_TUNNEL_EXPIRY_MS,
+  buildPublicUrl as buildTunnelPublicUrl,
   generateSubdomain,
   HEARTBEAT_INTERVAL_MS,
   HEARTBEAT_TIMEOUT_MS,
@@ -47,6 +48,7 @@ export interface CreateSessionInput {
 export interface TunnelManagerOptions {
   domain: string;
   port: number;
+  apiPublicUrl?: string;
   expiryMs?: number;
   onExpired?: (session: TunnelSession) => void;
   onSessionRemoved?: (session: TunnelSession) => void;
@@ -81,17 +83,12 @@ export class TunnelManager {
   }
 
   buildPublicUrl(subdomain: string): string {
-    const { domain, port } = this.options;
-    const hostname = domain.split(':')[0] ?? domain;
-    const isLocal = hostname === 'localhost' || hostname.endsWith('.localhost');
-
-    if (isLocal) {
-      return `http://${subdomain}.localhost:${String(port)}`;
-    }
-
-    const protocol = port === 443 ? 'https' : 'http';
-    const portSuffix = port === 80 || port === 443 ? '' : `:${String(port)}`;
-    return `${protocol}://${subdomain}.${domain}${portSuffix}`;
+    return buildTunnelPublicUrl(
+      subdomain,
+      this.options.domain,
+      this.options.port,
+      this.options.apiPublicUrl,
+    );
   }
 
   getExpiryDate(): Date {

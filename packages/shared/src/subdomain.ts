@@ -59,7 +59,12 @@ export function generateSubdomain(): string {
   return `${randomItem(ADJECTIVES)}-${randomItem(NOUNS)}`;
 }
 
-export function buildPublicUrl(subdomain: string, domain: string, port: number): string {
+export function buildPublicUrl(
+  subdomain: string,
+  domain: string,
+  port: number,
+  apiPublicUrl?: string,
+): string {
   const hostname = domain.split(':')[0] ?? domain;
   const isLocal = hostname === 'localhost' || hostname.endsWith('.localhost');
 
@@ -67,9 +72,16 @@ export function buildPublicUrl(subdomain: string, domain: string, port: number):
     return `http://${subdomain}.localhost:${String(port)}`;
   }
 
-  const protocol = port === 443 ? 'https' : 'http';
-  const portSuffix = port === 80 || port === 443 ? '' : `:${String(port)}`;
-  return `${protocol}://${subdomain}.${domain}${portSuffix}`;
+  if (apiPublicUrl) {
+    try {
+      const base = new URL(apiPublicUrl);
+      return `${base.protocol}//${subdomain}.${hostname}`;
+    } catch {
+      // fall through to default
+    }
+  }
+
+  return `https://${subdomain}.${domain}`;
 }
 
 export function parseTunnelHost(hostHeader: string | undefined, domain: string): string | null {

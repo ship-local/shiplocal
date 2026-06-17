@@ -162,7 +162,9 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
       }
     }
 
-    const socket = new WebSocket(toWebSocketUrl(options.serverUrl));
+    const socket = new WebSocket(toWebSocketUrl(options.serverUrl), {
+      maxPayload: 64 * 1024 * 1024,
+    });
     ws = socket;
 
     socket.on('open', () => {

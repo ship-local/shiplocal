@@ -28,6 +28,7 @@ const STRIP_RESPONSE_HEADERS = new Set([
 
 function sanitizeRequestHeaders(
   headers: Record<string, string | string[]>,
+  localPort: number,
 ): http.OutgoingHttpHeaders {
   const result: http.OutgoingHttpHeaders = {};
 
@@ -38,6 +39,8 @@ function sanitizeRequestHeaders(
     }
     result[key] = value;
   }
+
+  result['host'] = `localhost:${String(localPort)}`;
 
   return result;
 }
@@ -69,7 +72,7 @@ export async function forwardToLocal(
         port: localPort,
         method: message.method,
         path: pathWithQuery,
-        headers: sanitizeRequestHeaders(message.headers),
+        headers: sanitizeRequestHeaders(message.headers, localPort),
       },
       (res) => {
         const chunks: Buffer[] = [];

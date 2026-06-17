@@ -1,20 +1,10 @@
 import type { FastifyInstance } from 'fastify';
+import { buildPublicUrl } from '@shiplocal/shared';
 import { prisma } from '../db.js';
 import { requireAuth } from '../auth/middleware.js';
 import { getTunnelManager } from '../tunnel/manager.js';
 
-function buildPublicUrl(subdomain: string, domain: string, port: number): string | null {
-  const hostname = domain.split(':')[0] ?? domain;
-  const isLocal = hostname === 'localhost' || hostname.endsWith('.localhost');
-
-  if (isLocal) {
-    return `http://${subdomain}.localhost:${String(port)}`;
-  }
-
-  const protocol = port === 443 ? 'https' : 'http';
-  const portSuffix = port === 80 || port === 443 ? '' : `:${String(port)}`;
-  return `${protocol}://${subdomain}.${domain}${portSuffix}`;
-}
+const API_PUBLIC_URL = process.env['API_PUBLIC_URL'];
 
 export function registerTunnelRoutes(
   app: FastifyInstance,
@@ -42,7 +32,9 @@ export function registerTunnelRoutes(
             subdomain: tunnel.subdomain,
             port: tunnel.port,
             status: live ? 'ONLINE' : tunnel.status,
-            publicUrl: live?.publicUrl ?? buildPublicUrl(tunnel.subdomain, domain, serverPort),
+            publicUrl:
+              live?.publicUrl ??
+              buildPublicUrl(tunnel.subdomain, domain, serverPort, API_PUBLIC_URL),
             createdAt: tunnel.createdAt.toISOString(),
             expiresAt: tunnel.expiresAt?.toISOString() ?? null,
             isLive: Boolean(live),

@@ -6,8 +6,8 @@ export const TUNNEL_PATH_PREFIX = '/t/';
 export const HEARTBEAT_INTERVAL_MS = 30_000;
 export const HEARTBEAT_TIMEOUT_MS = 90_000;
 export const DEFAULT_TUNNEL_EXPIRY_MS = 2 * 60 * 60 * 1000; // 2 hours
-export const REQUEST_TIMEOUT_MS = 30_000;
-export const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
+export const REQUEST_TIMEOUT_MS = 120_000;
+export const MAX_BODY_BYTES = 50 * 1024 * 1024; // 50 MB
 
 const headersSchema = z.record(z.union([z.string(), z.array(z.string())]));
 

@@ -29,6 +29,7 @@ import {
 const port = Number.parseInt(process.env['PORT'] ?? String(DEFAULT_SERVER_PORT), 10);
 const host = process.env['HOST'] ?? '0.0.0.0';
 const tunnelDomain = process.env['SHIPLOCAL_DOMAIN'] ?? DEFAULT_TUNNEL_DOMAIN;
+const apiPublicUrl = process.env['API_PUBLIC_URL'];
 const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:3001';
 const tunnelExpiryMs = process.env['TUNNEL_EXPIRY_HOURS']
   ? Number.parseInt(process.env['TUNNEL_EXPIRY_HOURS'], 10) * 60 * 60 * 1000
@@ -53,11 +54,14 @@ await app.register(jwt, {
   secret: process.env['JWT_SECRET'] ?? 'dev-secret-change-me',
 });
 
-await app.register(websocket);
+await app.register(websocket, {
+  options: { maxPayload: 64 * 1024 * 1024 },
+});
 
 initTunnelManager({
   domain: tunnelDomain,
   port,
+  apiPublicUrl,
   expiryMs: tunnelExpiryMs,
   onExpired: (session) => {
     app.log.info({ subdomain: session.subdomain }, 'Tunnel expired');
