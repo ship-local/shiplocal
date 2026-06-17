@@ -196,15 +196,6 @@ export async function proxyTunnelRequest(
   reply: FastifyReply,
   domain: string,
 ): Promise<void> {
-  if (
-    request.url.startsWith('/api/') ||
-    request.url.startsWith('/health') ||
-    request.url.startsWith('/overlay.js')
-  ) {
-    reply.callNotFound();
-    return;
-  }
-
   const manager = getTunnelManager();
   const hostSubdomain = parseTunnelHost(request.headers.host, domain);
   const pathMatch = hostSubdomain ? null : parseTunnelPath(request.url);
