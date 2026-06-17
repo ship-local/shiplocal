@@ -29,13 +29,22 @@ Open http://localhost:3001 — full guide in [docs/quickstart.md](docs/quickstar
 
 ## CLI
 
+### Install from npm (production)
+
+```bash
+npm install -g shiplocal
+export SHIPLOCAL_API_URL=https://shiplocal.cloud
+shiplocal login
+shiplocal 3000
+```
+
+### Local development (from repo)
+
 ```bash
 pnpm tunnel login
 pnpm tunnel 3000                  # expose port 3000
 pnpm tunnel 3000 --password demo  # password-protected preview
 ```
-
-For global install (after npm publish): `npm install -g shiplocal`
 
 ## Documentation
 

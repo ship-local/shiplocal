@@ -1,42 +1,80 @@
 # Publishing the CLI to npm
 
-The `shiplocal` CLI depends on `@shiplocal/shared` and `@shiplocal/tunnel-client`. Publish all three packages (or bundle the CLI) before users can `npm install -g shiplocal`.
+ShipLocal publishes **three packages** to npm:
 
-## Option A: Publish workspace packages (recommended for beta)
+| Package       | npm name                   |
+| ------------- | -------------------------- |
+| Shared types  | `@shiplocal/shared`        |
+| Tunnel client | `@shiplocal/tunnel-client` |
+| CLI           | `shiplocal`                |
 
-1. Bump versions in `packages/shared`, `packages/tunnel-client`, `packages/cli`.
-2. Build all packages: `pnpm build`
-3. Publish in order:
-
-```bash
-pnpm --filter @shiplocal/shared publish --access public
-pnpm --filter @shiplocal/tunnel-client publish --access public
-pnpm --filter shiplocal publish --access public
-```
-
-4. Update `packages/cli/package.json` dependencies from `workspace:*` to published versions before the CLI publish step.
-
-## Option B: Global link (local beta testers)
+Users install only the CLI:
 
 ```bash
-pnpm --filter shiplocal build
-pnpm link --global --filter shiplocal
-shiplocal login
+npm install -g shiplocal
 ```
 
-## Pre-publish checklist
+npm automatically installs `@shiplocal/shared` and `@shiplocal/tunnel-client` as dependencies.
 
-- [ ] `JWT_SECRET` and secrets not in package
-- [ ] Version bumped (semver)
-- [ ] `pnpm typecheck && pnpm lint && pnpm build` pass
-- [ ] README install instructions updated
-- [ ] `SHIPLOCAL_API_URL` documented for Cloud vs self-host
-
-## npm account setup
+## One-time setup
 
 ```bash
 npm login
 npm whoami
 ```
 
-Package name `shiplocal` must be available on npm (check npmjs.com).
+You need an npm account with permission to publish:
+
+- `shiplocal` (unscoped)
+- `@shiplocal/*` (scoped, public)
+
+## Publish (from repo root)
+
+```bash
+pnpm publish:packages
+```
+
+This will:
+
+1. Build all packages
+2. Publish `@shiplocal/shared@0.1.0`
+3. Publish `@shiplocal/tunnel-client@0.1.0`
+4. Publish `shiplocal@0.1.0` (workspace deps are rewritten to published versions)
+
+## Dry run (verify tarball before publishing)
+
+```bash
+pnpm build
+pnpm --filter @shiplocal/shared pack
+pnpm --filter @shiplocal/tunnel-client pack
+pnpm --filter shiplocal pack
+```
+
+Inspect the generated `.tgz` files in each package directory.
+
+## After publish — user install
+
+```bash
+npm install -g shiplocal
+export SHIPLOCAL_API_URL=https://shiplocal.cloud
+shiplocal login
+shiplocal 3000
+```
+
+## Version bumps
+
+Before the next release, bump versions in:
+
+- `packages/shared/package.json`
+- `packages/tunnel-client/package.json`
+- `packages/cli/package.json`
+
+Keep all three on the same semver for simplicity.
+
+## Pre-publish checklist
+
+- [ ] `pnpm typecheck && pnpm lint && pnpm build` pass
+- [ ] No secrets in published files (`files` only includes `dist/`)
+- [ ] Version bumped
+- [ ] `npm whoami` shows correct account
+- [ ] Test with `npm pack` tarballs locally if needed

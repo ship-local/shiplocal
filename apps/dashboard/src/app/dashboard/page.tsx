@@ -268,7 +268,8 @@ export default function DashboardPage() {
                         style={{
                           width: 120,
                           height: 80,
-                          objectFit: 'cover',
+                          objectFit: 'contain',
+                          background: 'var(--background)',
                           borderRadius: '0.5rem',
                           border: '1px solid var(--border)',
                           display: 'block',

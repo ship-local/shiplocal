@@ -14,6 +14,79 @@ function getConfig(): OverlayConfig | null {
   return { tunnelId, apiUrl };
 }
 
+const SCREENSHOT_PADDING_PX = 48;
+
+function getPaddedCaptureRect(element: Element): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  const rect = element.getBoundingClientRect();
+  const docWidth = Math.max(
+    document.documentElement.scrollWidth,
+    document.body.scrollWidth,
+    window.innerWidth,
+  );
+  const docHeight = Math.max(
+    document.documentElement.scrollHeight,
+    document.body.scrollHeight,
+    window.innerHeight,
+  );
+
+  const left = rect.left + window.scrollX - SCREENSHOT_PADDING_PX;
+  const top = rect.top + window.scrollY - SCREENSHOT_PADDING_PX;
+  const right = rect.right + window.scrollX + SCREENSHOT_PADDING_PX;
+  const bottom = rect.bottom + window.scrollY + SCREENSHOT_PADDING_PX;
+
+  const x = Math.max(0, left);
+  const y = Math.max(0, top);
+  const width = Math.min(docWidth, right) - x;
+  const height = Math.min(docHeight, bottom) - y;
+
+  return {
+    x,
+    y,
+    width: Math.max(1, width),
+    height: Math.max(1, height),
+  };
+}
+
+async function captureScreenshot(
+  element: Element,
+  hideElements: HTMLElement[],
+): Promise<string | undefined> {
+  const previousVisibility = hideElements.map((node) => node.style.visibility);
+  for (const node of hideElements) {
+    node.style.visibility = 'hidden';
+  }
+
+  try {
+    const captureRect = getPaddedCaptureRect(element);
+    const canvas = await html2canvas(document.documentElement, {
+      logging: false,
+      useCORS: true,
+      backgroundColor: null,
+      scale: Math.min(window.devicePixelRatio, 2),
+      x: captureRect.x,
+      y: captureRect.y,
+      width: captureRect.width,
+      height: captureRect.height,
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: document.documentElement.clientWidth,
+      windowHeight: document.documentElement.clientHeight,
+    });
+    return canvas.toDataURL('image/png');
+  } catch {
+    return undefined;
+  } finally {
+    hideElements.forEach((node, index) => {
+      node.style.visibility = previousVisibility[index] ?? '';
+    });
+  }
+}
+
 function buildSelector(element: Element): string {
   if (element.id) return `#${CSS.escape(element.id)}`;
 
@@ -145,18 +218,7 @@ function init(): void {
 
         try {
           const rect = element.getBoundingClientRect();
-          let screenshot: string | undefined;
-
-          try {
-            const canvas = await html2canvas(element as HTMLElement, {
-              logging: false,
-              useCORS: true,
-              scale: window.devicePixelRatio > 1 ? 1 : 1,
-            });
-            screenshot = canvas.toDataURL('image/png');
-          } catch {
-            /* screenshot optional */
-          }
+          const screenshot = await captureScreenshot(element, [backdrop, btn]);
 
           const response = await fetch(`${apiUrl}/api/comments`, {
             method: 'POST',
