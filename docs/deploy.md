@@ -53,17 +53,14 @@ Edit `apps/dashboard/.env.local`:
 NEXT_PUBLIC_API_URL=https://shiplocal.app
 ```
 
-## 3. Build
+## 3. Deploy API server (Docker)
+
+On the VPS you only need to rebuild the **server container** — not the full monorepo (host `pnpm build` can fail on the CLI package; that is fine):
 
 ```bash
-pnpm build
-pnpm db:migrate
-```
-
-## 4. Start with Docker Compose
-
-```bash
-docker compose -f docker/docker-compose.prod.yml up -d
+git pull
+docker compose -f docker/docker-compose.prod.yml --env-file docker/.env up -d --build
+pnpm db:migrate   # first deploy or after schema changes
 ```
 
 ## 5. Caddy (HTTPS + wildcard)
