@@ -36,9 +36,11 @@ function toWebSocketUrl(serverUrl: string): string {
 function formatLocalProxyError(err: unknown, localPort: number): string {
   if (err instanceof Error && 'code' in err && err.code === 'ECONNREFUSED') {
     return [
-      `Nothing is running on http://127.0.0.1:${String(localPort)}.`,
+      `Nothing is listening on port ${String(localPort)} (tried 127.0.0.1 and ::1).`,
       '',
       'Start your local server on that port, then refresh this page.',
+      'If your browser works on localhost but the tunnel does not, your dev server may only',
+      'listen on IPv6 — bind to 0.0.0.0 or 127.0.0.1 (e.g. next dev -H 0.0.0.0).',
       `If your app uses a different port, restart the CLI with that port (e.g. shiplocal ${String(localPort)}).`,
     ].join('\n');
   }

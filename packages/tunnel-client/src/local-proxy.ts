@@ -8,6 +8,8 @@ import {
   type TunnelResponseMessage,
 } from '@shiplocal/shared';
 
+const LOOPBACK_HOSTS = ['127.0.0.1', '::1'] as const;
+
 const HOP_BY_HOP_HEADERS = new Set([
   'connection',
   'keep-alive',
@@ -25,6 +27,10 @@ const STRIP_RESPONSE_HEADERS = new Set([
   'content-encoding',
   'content-length',
 ]);
+
+function isConnectionRefused(err: unknown): boolean {
+  return err instanceof Error && 'code' in err && err.code === 'ECONNREFUSED';
+}
 
 function sanitizeRequestHeaders(
   headers: Record<string, string | string[]>,
@@ -58,17 +64,17 @@ function sanitizeResponseHeaders(headers: IncomingHttpHeaders): Record<string, s
   return result;
 }
 
-export async function forwardToLocal(
+function forwardToHost(
+  hostname: string,
   localPort: number,
   message: TunnelRequestMessage,
+  body: Buffer,
+  pathWithQuery: string,
 ): Promise<TunnelResponseMessage> {
-  const body = decodeBody(message.body);
-  const pathWithQuery = message.query ? `${message.path}?${message.query}` : message.path;
-
   return new Promise((resolve, reject) => {
     const req = http.request(
       {
-        hostname: '127.0.0.1',
+        hostname,
         port: localPort,
         method: message.method,
         path: pathWithQuery,
@@ -111,4 +117,28 @@ export async function forwardToLocal(
 
     req.end();
   });
+}
+
+export async function forwardToLocal(
+  localPort: number,
+  message: TunnelRequestMessage,
+): Promise<TunnelResponseMessage> {
+  const body = decodeBody(message.body);
+  const pathWithQuery = message.query ? `${message.path}?${message.query}` : message.path;
+
+  let lastError: unknown;
+
+  for (const hostname of LOOPBACK_HOSTS) {
+    try {
+      return await forwardToHost(hostname, localPort, message, body, pathWithQuery);
+    } catch (err) {
+      if (isConnectionRefused(err)) {
+        lastError = err;
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastError ?? new Error('Local server unreachable');
 }
