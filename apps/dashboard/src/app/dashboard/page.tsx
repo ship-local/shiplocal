@@ -7,6 +7,30 @@ import type { CommentSummary, ProjectSummary, TunnelSummary } from '@shiplocal/s
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 
+const LAYOUT_STORAGE_KEY = 'shiplocal_dashboard_layout';
+
+type DashboardLayout = 'focus' | 'split' | 'board';
+
+const LAYOUT_OPTIONS: Array<{
+  id: DashboardLayout;
+  label: string;
+  description: string;
+}> = [
+  { id: 'focus', label: 'Focus', description: 'Feedback first, controls below' },
+  { id: 'split', label: 'Split', description: 'Feedback left, controls right' },
+  { id: 'board', label: 'Board', description: 'Three columns side by side' },
+];
+
+function isDashboardLayout(value: string): value is DashboardLayout {
+  return value === 'focus' || value === 'split' || value === 'board';
+}
+
+function readStoredLayout(): DashboardLayout {
+  if (typeof window === 'undefined') return 'focus';
+  const stored = localStorage.getItem(LAYOUT_STORAGE_KEY);
+  return stored && isDashboardLayout(stored) ? stored : 'focus';
+}
+
 export default function DashboardPage() {
   const { user, token, apiToken, loading, logout } = useAuth();
   const router = useRouter();
@@ -16,6 +40,17 @@ export default function DashboardPage() {
   const [fetching, setFetching] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
   const [expandedScreenshot, setExpandedScreenshot] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [layout, setLayout] = useState<DashboardLayout>('focus');
+
+  useEffect(() => {
+    setLayout(readStoredLayout());
+  }, []);
+
+  function selectLayout(next: DashboardLayout) {
+    setLayout(next);
+    localStorage.setItem(LAYOUT_STORAGE_KEY, next);
+  }
 
   const loadData = useCallback(async () => {
     if (!token) return;
@@ -64,8 +99,6 @@ export default function DashboardPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [expandedScreenshot]);
 
-  const [actionError, setActionError] = useState<string | null>(null);
-
   async function handleTunnelAction(id: string, action: 'stop' | 'restart' | 'delete') {
     if (!token) return;
     setActionId(id);
@@ -85,6 +118,218 @@ export default function DashboardPage() {
     }
   }
 
+  const feedbackSection = (
+    <section style={cardStyle}>
+      <div style={sectionHeaderStyle}>
+        <h2 style={sectionTitleStyle}>Client feedback</h2>
+        {comments.length > 0 ? <span style={badgeStyle}>{String(comments.length)}</span> : null}
+      </div>
+      {comments.length === 0 ? (
+        <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+          No feedback yet. Share a tunnel URL with your client — they can click 💬 on the preview.
+        </p>
+      ) : (
+        <ul style={{ listStyle: 'none', display: 'grid', gap: '1rem' }}>
+          {comments.map((comment) => (
+            <li key={comment.id} style={feedbackItemStyle}>
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                {comment.screenshot ? (
+                  <button
+                    type="button"
+                    onClick={() => setExpandedScreenshot(comment.screenshot)}
+                    title="View full screenshot"
+                    style={{
+                      padding: 0,
+                      border: 'none',
+                      background: 'none',
+                      cursor: 'zoom-in',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={comment.screenshot}
+                      alt="Feedback screenshot thumbnail"
+                      style={{
+                        width: 140,
+                        height: 96,
+                        objectFit: 'contain',
+                        background: 'var(--background)',
+                        borderRadius: '0.5rem',
+                        border: '1px solid var(--border)',
+                        display: 'block',
+                      }}
+                    />
+                  </button>
+                ) : null}
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <p style={{ fontWeight: 500, marginBottom: '0.25rem' }}>{comment.message}</p>
+                  <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+                    {comment.projectName} · {comment.page}
+                    {comment.selector ? ` · ${comment.selector}` : ''}
+                  </p>
+                  <p style={{ color: 'var(--muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                    {new Date(comment.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+
+  const tunnelsSection = (
+    <section style={cardStyle}>
+      <h2 style={{ ...sectionTitleStyle, marginBottom: '1rem' }}>Active tunnels</h2>
+      {tunnels.length === 0 ? (
+        <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+          No tunnels yet. Run <code style={{ color: 'var(--foreground)' }}>shiplocal 3000</code>{' '}
+          after logging in via CLI.
+        </p>
+      ) : (
+        <ul style={{ listStyle: 'none', display: 'grid', gap: '1rem' }}>
+          {tunnels.map((tunnel) => (
+            <li key={tunnel.id} style={listItemStyle}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <p style={{ fontWeight: 500 }}>
+                    {tunnel.isLive ? '🟢' : '🔴'} {tunnel.projectName}
+                    {tunnel.passwordProtected ? ' 🔒' : ''}
+                  </p>
+                  <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+                    Port {String(tunnel.port)} · {tunnel.subdomain}
+                  </p>
+                  {tunnel.publicUrl ? (
+                    <a
+                      href={tunnel.publicUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ fontSize: '0.875rem' }}
+                    >
+                      {tunnel.publicUrl}
+                    </a>
+                  ) : null}
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '0.5rem',
+                    alignItems: 'start',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <button
+                    disabled={actionId === tunnel.id || !tunnel.isLive}
+                    onClick={() => void handleTunnelAction(tunnel.id, 'stop')}
+                    style={ghostButtonStyle}
+                  >
+                    Stop
+                  </button>
+                  <button
+                    disabled={actionId === tunnel.id}
+                    onClick={() => void handleTunnelAction(tunnel.id, 'restart')}
+                    style={ghostButtonStyle}
+                  >
+                    Restart
+                  </button>
+                  <button
+                    disabled={actionId === tunnel.id}
+                    onClick={() => void handleTunnelAction(tunnel.id, 'delete')}
+                    style={{ ...ghostButtonStyle, color: '#ef4444' }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+
+  const projectsSection = (
+    <section style={cardStyle}>
+      <h2 style={{ ...sectionTitleStyle, marginBottom: '1rem' }}>Projects</h2>
+      {projects.length === 0 ? (
+        <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+          No projects yet. Run the CLI to create one.
+        </p>
+      ) : (
+        <ul style={{ listStyle: 'none', display: 'grid', gap: '0.75rem' }}>
+          {projects.map((project) => (
+            <li key={project.id}>
+              <Link href={`/dashboard/projects/${project.id}`} style={projectLinkStyle}>
+                <span style={{ fontWeight: 500 }}>{project.name}</span>
+                <span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+                  {project.onlineCount > 0 ? '🟢' : '🔴'} {String(project.onlineCount)}/
+                  {String(project.tunnelCount)} online
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {apiToken ? (
+        <details style={{ marginTop: '1.25rem' }}>
+          <summary style={{ cursor: 'pointer', fontSize: '0.875rem', fontWeight: 500 }}>
+            CLI token
+          </summary>
+          <p style={{ color: 'var(--muted)', fontSize: '0.8125rem', margin: '0.75rem 0' }}>
+            Run <code style={{ color: 'var(--foreground)' }}>shiplocal login</code> or set{' '}
+            <code style={{ color: 'var(--foreground)' }}>SHIPLOCAL_TOKEN</code>
+          </p>
+          <code style={{ fontSize: '0.75rem', wordBreak: 'break-all' }}>
+            {apiToken.slice(0, 20)}…
+          </code>
+        </details>
+      ) : null}
+    </section>
+  );
+
+  const sidebar = (
+    <div style={{ display: 'grid', gap: '1.25rem', alignContent: 'start' }}>
+      {tunnelsSection}
+      {projectsSection}
+    </div>
+  );
+
+  let content: React.ReactNode;
+
+  if (layout === 'split') {
+    content = (
+      <div className="dashboard-split">
+        <div style={{ minWidth: 0 }}>{feedbackSection}</div>
+        {sidebar}
+      </div>
+    );
+  } else if (layout === 'board') {
+    content = (
+      <div className="dashboard-board">
+        {feedbackSection}
+        {tunnelsSection}
+        {projectsSection}
+      </div>
+    );
+  } else {
+    content = (
+      <>
+        <div style={{ marginBottom: '1.25rem' }}>{feedbackSection}</div>
+        <div className="dashboard-focus-secondary">{sidebar}</div>
+      </>
+    );
+  }
+
   if (loading || fetching) {
     return (
       <main style={mainStyle}>
@@ -95,27 +340,96 @@ export default function DashboardPage() {
 
   return (
     <main style={mainStyle}>
-      <header
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '2rem',
-        }}
-      >
+      <style>{`
+        .dashboard-layout-toggle {
+          display: inline-flex;
+          padding: 0.25rem;
+          border-radius: 0.625rem;
+          border: 1px solid var(--border);
+          background: var(--background);
+          gap: 0.25rem;
+        }
+        .dashboard-layout-option {
+          border: none;
+          background: transparent;
+          color: var(--muted);
+          font-size: 0.8125rem;
+          font-weight: 500;
+          padding: 0.375rem 0.75rem;
+          border-radius: 0.5rem;
+          cursor: pointer;
+          transition: background 0.15s ease, color 0.15s ease;
+        }
+        .dashboard-layout-option[data-active='true'] {
+          background: var(--accent);
+          color: white;
+        }
+        .dashboard-focus-secondary {
+          display: grid;
+          gap: 1.25rem;
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+        .dashboard-split {
+          display: grid;
+          gap: 1.25rem;
+          grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr);
+          align-items: start;
+        }
+        .dashboard-board {
+          display: grid;
+          gap: 1.25rem;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          align-items: start;
+        }
+        @media (max-width: 1024px) {
+          .dashboard-split,
+          .dashboard-board {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+
+      <header style={headerStyle}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700 }}>Dashboard</h1>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Dashboard</h1>
           <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>{user?.email}</p>
         </div>
-        <button
-          onClick={() => {
-            logout();
-            router.push('/login');
-          }}
-          style={ghostButtonStyle}
-        >
-          Sign out
-        </button>
+
+        <div style={headerActionsStyle}>
+          <div>
+            <p style={layoutLabelStyle}>Layout</p>
+            <div
+              className="dashboard-layout-toggle"
+              role="radiogroup"
+              aria-label="Dashboard layout"
+            >
+              {LAYOUT_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className="dashboard-layout-option"
+                  role="radio"
+                  aria-checked={layout === option.id}
+                  aria-label={option.description}
+                  title={option.description}
+                  data-active={layout === option.id}
+                  onClick={() => selectLayout(option.id)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              logout();
+              router.push('/login');
+            }}
+            style={ghostButtonStyle}
+          >
+            Sign out
+          </button>
+        </div>
       </header>
 
       {actionError ? (
@@ -124,175 +438,7 @@ export default function DashboardPage() {
         </p>
       ) : null}
 
-      {apiToken ? (
-        <section style={cardStyle}>
-          <h2 style={sectionTitleStyle}>CLI token</h2>
-          <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
-            Run <code style={{ color: 'var(--foreground)' }}>shiplocal login</code> or set{' '}
-            <code style={{ color: 'var(--foreground)' }}>SHIPLOCAL_TOKEN</code>
-          </p>
-          <code style={{ fontSize: '0.75rem', wordBreak: 'break-all' }}>
-            {apiToken.slice(0, 20)}…
-          </code>
-        </section>
-      ) : null}
-
-      <section style={{ ...cardStyle, marginTop: '1.5rem' }}>
-        <h2 style={sectionTitleStyle}>Projects</h2>
-        {projects.length === 0 ? (
-          <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
-            No projects yet. Run the CLI to create one.
-          </p>
-        ) : (
-          <ul style={{ listStyle: 'none', display: 'grid', gap: '0.75rem' }}>
-            {projects.map((project) => (
-              <li key={project.id}>
-                <Link href={`/dashboard/projects/${project.id}`} style={projectLinkStyle}>
-                  <span style={{ fontWeight: 500 }}>{project.name}</span>
-                  <span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
-                    {project.onlineCount > 0 ? '🟢' : '🔴'} {String(project.onlineCount)}/
-                    {String(project.tunnelCount)} online
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section style={{ ...cardStyle, marginTop: '1.5rem' }}>
-        <h2 style={sectionTitleStyle}>Active tunnels</h2>
-        {tunnels.length === 0 ? (
-          <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
-            No tunnels yet. Run <code style={{ color: 'var(--foreground)' }}>shiplocal 3000</code>{' '}
-            after logging in via CLI.
-          </p>
-        ) : (
-          <ul style={{ listStyle: 'none', display: 'grid', gap: '1rem' }}>
-            {tunnels.map((tunnel) => (
-              <li
-                key={tunnel.id}
-                style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: '1rem',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <div>
-                    <p style={{ fontWeight: 500 }}>
-                      {tunnel.isLive ? '🟢' : '🔴'} {tunnel.projectName}
-                      {tunnel.passwordProtected ? ' 🔒' : ''}
-                    </p>
-                    <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
-                      Port {String(tunnel.port)} · {tunnel.subdomain}
-                    </p>
-                    {tunnel.publicUrl ? (
-                      <a
-                        href={tunnel.publicUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ fontSize: '0.875rem' }}
-                      >
-                        {tunnel.publicUrl}
-                      </a>
-                    ) : null}
-                    <p style={{ color: 'var(--muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                      Created {new Date(tunnel.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'start' }}>
-                    <button
-                      disabled={actionId === tunnel.id || !tunnel.isLive}
-                      onClick={() => void handleTunnelAction(tunnel.id, 'stop')}
-                      style={ghostButtonStyle}
-                    >
-                      Stop
-                    </button>
-                    <button
-                      disabled={actionId === tunnel.id}
-                      onClick={() => void handleTunnelAction(tunnel.id, 'restart')}
-                      style={ghostButtonStyle}
-                    >
-                      Restart
-                    </button>
-                    <button
-                      disabled={actionId === tunnel.id}
-                      onClick={() => void handleTunnelAction(tunnel.id, 'delete')}
-                      style={{ ...ghostButtonStyle, color: '#ef4444' }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section style={{ ...cardStyle, marginTop: '1.5rem' }}>
-        <h2 style={sectionTitleStyle}>Client feedback</h2>
-        {comments.length === 0 ? (
-          <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
-            No feedback yet. Share a tunnel URL with your client — they can click 💬 on the preview.
-          </p>
-        ) : (
-          <ul style={{ listStyle: 'none', display: 'grid', gap: '1rem' }}>
-            {comments.map((comment) => (
-              <li
-                key={comment.id}
-                style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}
-              >
-                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                  {comment.screenshot ? (
-                    <button
-                      type="button"
-                      onClick={() => setExpandedScreenshot(comment.screenshot)}
-                      title="View full screenshot"
-                      style={{
-                        padding: 0,
-                        border: 'none',
-                        background: 'none',
-                        cursor: 'zoom-in',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={comment.screenshot}
-                        alt="Feedback screenshot thumbnail"
-                        style={{
-                          width: 120,
-                          height: 80,
-                          objectFit: 'contain',
-                          background: 'var(--background)',
-                          borderRadius: '0.5rem',
-                          border: '1px solid var(--border)',
-                          display: 'block',
-                        }}
-                      />
-                    </button>
-                  ) : null}
-                  <div style={{ flex: 1, minWidth: 200 }}>
-                    <p style={{ fontWeight: 500, marginBottom: '0.25rem' }}>{comment.message}</p>
-                    <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
-                      {comment.projectName} · {comment.page}
-                      {comment.selector ? ` · ${comment.selector}` : ''}
-                    </p>
-                    <p style={{ color: 'var(--muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                      {new Date(comment.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {content}
 
       {expandedScreenshot ? (
         <div
@@ -355,22 +501,73 @@ export default function DashboardPage() {
 }
 
 const mainStyle: React.CSSProperties = {
-  maxWidth: 960,
+  maxWidth: 1280,
   margin: '0 auto',
-  padding: '3rem 1.5rem',
+  padding: '1.5rem',
+};
+
+const headerStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '1rem',
+  flexWrap: 'wrap',
+  marginBottom: '1.25rem',
+};
+
+const headerActionsStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-end',
+  gap: '1rem',
+  flexWrap: 'wrap',
+};
+
+const layoutLabelStyle: React.CSSProperties = {
+  fontSize: '0.6875rem',
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  color: 'var(--muted)',
+  marginBottom: '0.375rem',
 };
 
 const cardStyle: React.CSSProperties = {
   background: 'var(--surface)',
   border: '1px solid var(--border)',
   borderRadius: '0.75rem',
-  padding: '1.5rem',
+  padding: '1.25rem',
+};
+
+const sectionHeaderStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.5rem',
+  marginBottom: '1rem',
 };
 
 const sectionTitleStyle: React.CSSProperties = {
   fontSize: '1rem',
   fontWeight: 600,
-  marginBottom: '1rem',
+  margin: 0,
+};
+
+const badgeStyle: React.CSSProperties = {
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  background: 'var(--accent)',
+  color: 'white',
+  borderRadius: '9999px',
+  padding: '0.125rem 0.5rem',
+};
+
+const feedbackItemStyle: React.CSSProperties = {
+  borderTop: '1px solid var(--border)',
+  paddingTop: '1rem',
+};
+
+const listItemStyle: React.CSSProperties = {
+  borderTop: '1px solid var(--border)',
+  paddingTop: '1rem',
 };
 
 const projectLinkStyle: React.CSSProperties = {

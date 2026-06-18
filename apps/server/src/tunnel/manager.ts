@@ -156,6 +156,16 @@ export class TunnelManager {
     this.dbTunnelIndex.delete(session.dbTunnelId);
 
     if (session.socket.readyState === session.socket.OPEN) {
+      try {
+        session.socket.send(
+          JSON.stringify({
+            type: 'terminated',
+            message: 'Tunnel closed from dashboard',
+          }),
+        );
+      } catch {
+        // socket may already be closing
+      }
       session.socket.close();
     }
 

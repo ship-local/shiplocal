@@ -14,6 +14,7 @@ export interface TunnelClientOptions {
   password?: string;
   onRegistered?: (info: RegisteredMessage) => void;
   onDisconnect?: () => void;
+  onTerminated?: (message: string) => void;
   onReconnecting?: (attempt: number) => void;
 }
 
@@ -126,6 +127,14 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
         intentionalClose = true;
         ws?.close();
       }
+      return;
+    }
+
+    if (message.type === 'terminated') {
+      intentionalClose = true;
+      publicUrl = null;
+      options.onTerminated?.(message.message);
+      ws?.close();
       return;
     }
 

@@ -53,6 +53,11 @@ export const errorMessageSchema = z.object({
   message: z.string(),
 });
 
+export const terminatedMessageSchema = z.object({
+  type: z.literal('terminated'),
+  message: z.string(),
+});
+
 export const tunnelMessageSchema = z.discriminatedUnion('type', [
   registerMessageSchema,
   registeredMessageSchema,
@@ -61,6 +66,7 @@ export const tunnelMessageSchema = z.discriminatedUnion('type', [
   tunnelRequestMessageSchema,
   tunnelResponseMessageSchema,
   errorMessageSchema,
+  terminatedMessageSchema,
 ]);
 
 export type RegisterMessage = z.infer<typeof registerMessageSchema>;
@@ -70,6 +76,7 @@ export type PongMessage = z.infer<typeof pongMessageSchema>;
 export type TunnelRequestMessage = z.infer<typeof tunnelRequestMessageSchema>;
 export type TunnelResponseMessage = z.infer<typeof tunnelResponseMessageSchema>;
 export type ErrorMessage = z.infer<typeof errorMessageSchema>;
+export type TerminatedMessage = z.infer<typeof terminatedMessageSchema>;
 export type TunnelMessage = z.infer<typeof tunnelMessageSchema>;
 
 export function parseTunnelMessage(data: unknown): TunnelMessage {

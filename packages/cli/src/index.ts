@@ -10,7 +10,7 @@ import { isLocalPortOpen } from './local-port.js';
 
 const program = new Command();
 
-program.name('shiplocal').description('Share localhost with clients in seconds').version('0.1.4');
+program.name('shiplocal').description('Share localhost with clients in seconds').version('0.1.5');
 
 program
   .command('login')
@@ -115,6 +115,12 @@ program
       },
       onReconnecting: (attempt) => {
         console.log(`Reconnecting… (attempt ${String(attempt)})`);
+      },
+      onTerminated: (message) => {
+        console.log('');
+        console.log(message);
+        console.log('Run shiplocal again to start a new tunnel.');
+        console.log('');
       },
     });
 
