@@ -63,6 +63,57 @@ docker compose -f docker/docker-compose.prod.yml --env-file docker/.env up -d --
 pnpm db:migrate   # first deploy or after schema changes
 ```
 
+## 4. Deploy dashboard (PM2)
+
+The dashboard must run **`next start`** (production), not `next dev`. If it runs in dev mode behind Caddy, CSS/JS return **400** and `/login` appears blank.
+
+```bash
+cd /var/www/shiplocal
+git pull
+pnpm install
+pnpm --filter @shiplocal/dashboard build
+
+# Stop old process if any (dev server or stale PM2 name)
+pm2 delete shiplocal-dashboard 2>/dev/null || pm2 delete dashboard 2>/dev/null || true
+
+pm2 start deploy/ecosystem.config.cjs
+pm2 save
+```
+
+**Troubleshooting**
+
+| Symptom                    | Cause                   | Fix                                                                 |
+| -------------------------- | ----------------------- | ------------------------------------------------------------------- |
+| `502` from Caddy           | Nothing on port 3001    | `pm2 logs shiplocal-dashboard` — usually missing build or PM2 crash |
+| `400` on `/_next/static/*` | `next dev` behind Caddy | Use `next start` via PM2 config above                               |
+| Blank `/login`             | JS failed to load       | Fix static assets first                                             |
+
+```bash
+# Is anything listening?
+ss -tlnp | grep 3001
+
+# PM2 status + logs
+pm2 status
+pm2 logs shiplocal-dashboard --lines 50
+
+# Rebuild if .next is missing
+pnpm --filter @shiplocal/dashboard build
+pm2 restart shiplocal-dashboard
+```
+
+Ensure `apps/dashboard/.env.local` contains:
+
+```env
+NEXT_PUBLIC_API_URL=https://shiplocal.cloud
+```
+
+Verify static assets load:
+
+```bash
+curl -sI https://app.shiplocal.cloud/_next/static/css/$(curl -s https://app.shiplocal.cloud | grep -o '/_next/static/css/[^"]*' | head -1 | cut -d/ -f5)
+# Should return HTTP 200, not 400
+```
+
 ## 5. Caddy (HTTPS + wildcard)
 
 Install Caddy on the host and use `deploy/Caddyfile`:

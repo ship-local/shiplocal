@@ -73,7 +73,6 @@ export default function HomePage() {
         <h2 style={sectionTitleStyle}>Quick install</h2>
         <pre style={codeBlockStyle}>
           {`npm install -g shiplocal
-export SHIPLOCAL_API_URL=https://shiplocal.cloud
 shiplocal login
 shiplocal 3000`}
         </pre>

@@ -22,7 +22,11 @@ export default function RegisterPage() {
   }, [loading, user, router]);
 
   if (loading || user) {
-    return null;
+    return (
+      <main style={{ maxWidth: 400, margin: '4rem auto', padding: '0 1.5rem' }}>
+        <p style={{ color: 'var(--muted)' }}>Loading…</p>
+      </main>
+    );
   }
 
   async function handleSubmit(e: FormEvent) {
