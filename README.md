@@ -1,10 +1,20 @@
 # ShipLocal
 
-> From localhost to client-ready.
+> **Open-source local development collaboration platform** — from localhost to client-ready.
 
-Share localhost with clients in seconds and collect visual feedback on the live preview.
+ShipLocal helps developers share work-in-progress applications with clients and teammates without deploying first. Expose localhost through a secure public URL, then collect visual feedback directly on the live preview.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+**Live:** [shiplocal.cloud](https://shiplocal.cloud) · **Blog:** [/blog](https://shiplocal.cloud/blog) · **Roadmap:** [ROADMAP.md](ROADMAP.md)
+
+## Why ShipLocal?
+
+The problem is not hosting — it is **collaboration**. Tunneling tools expose your machine; they do not help clients tell you _what_ to change in a way you can act on. ShipLocal closes that loop:
+
+1. **Tunnel** — `shiplocal 3000` → public preview URL
+2. **Feedback** — clients click 💬 on the page, pin comments to elements
+3. **Dashboard** — structured feedback with screenshots, not WhatsApp guesswork
 
 ## Features
 
@@ -12,7 +22,7 @@ Share localhost with clients in seconds and collect visual feedback on the live 
 - **Client feedback** — 💬 overlay for element-level comments + screenshots
 - **Dashboard** — manage tunnels, view feedback, stop/restart sessions
 - **Password-protected previews** — `shiplocal 3000 --password secret`
-- **Self-hostable** — run on your own VPS (see `docs/self-hosting.md`)
+- **Self-hostable** — run on your own VPS (see [docs/self-hosting.md](docs/self-hosting.md))
 
 ## Quick start (local)
 
@@ -48,28 +58,47 @@ pnpm tunnel 3000 --password demo  # password-protected preview
 
 ## Documentation
 
-| Doc                                          | Description               |
-| -------------------------------------------- | ------------------------- |
-| [docs/quickstart.md](docs/quickstart.md)     | Zero to first tunnel      |
-| [docs/self-hosting.md](docs/self-hosting.md) | Run on your own server    |
-| [docs/deploy.md](docs/deploy.md)             | Production VPS deployment |
-| [docs/publish-cli.md](docs/publish-cli.md)   | npm publish checklist     |
-| [ROADMAP.md](ROADMAP.md)                     | Public product roadmap    |
+| Doc                                                | Description                       |
+| -------------------------------------------------- | --------------------------------- |
+| [docs/quickstart.md](docs/quickstart.md)           | Zero to first tunnel              |
+| [docs/self-hosting.md](docs/self-hosting.md)       | Run on your own server            |
+| [docs/deploy.md](docs/deploy.md)                   | Production VPS deployment         |
+| [docs/publish-cli.md](docs/publish-cli.md)         | npm publish checklist             |
+| [ROADMAP.md](ROADMAP.md)                           | Public product roadmap            |
+| [docs/open-core-split.md](docs/open-core-split.md) | Public Core + private Cloud setup |
 
 ## Project structure
 
 ```
 apps/
-  dashboard/          Next.js dashboard + landing
+  dashboard/          Next.js dashboard + landing + blog
   server/             Fastify API + tunnel server
 packages/
-  cli/                shiplocal CLI
+  cli/                shiplocal CLI (npm: shiplocal)
   feedback-overlay/   Client 💬 widget
   shared/             Types, protocol, validation
   tunnel-client/      WebSocket tunnel client
 deploy/               Caddy + Docker for production
 docs/                 Guides
 ```
+
+## Open-core model
+
+| Layer               | What it is                                                             |
+| ------------------- | ---------------------------------------------------------------------- |
+| **ShipLocal Core**  | MIT-licensed tunnel engine — CLI, server, self-host docs               |
+| **ShipLocal Cloud** | Managed SaaS at shiplocal.cloud — hosted infra, collaboration features |
+
+Core is open forever. Cloud is the convenience layer for agencies who want it managed.
+
+## Contributing
+
+We welcome contributions — especially docs, tests, UI polish, and framework examples. Core tunnel and security changes: please open an issue first.
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — setup, PR guidelines
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — community standards
+- [SECURITY.md](SECURITY.md) — report vulnerabilities privately
+- [Open issues](https://github.com/ship-local/shiplocal/issues) — pick something up
 
 ## Scripts
 
@@ -112,4 +141,4 @@ Use `pnpm tunnel` from the repo root, or `pnpm link --global --filter shiplocal`
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Cloud-specific features may remain proprietary per open-core strategy.
+MIT — see [LICENSE](LICENSE). ShipLocal uses an open-core model; some Cloud collaboration features may remain proprietary.

@@ -13,7 +13,7 @@ import { resolveUserFromApiToken } from '../routes/auth.js';
 import { hashPassword } from '../auth/crypto.js';
 import { prisma } from '../db.js';
 import { getTunnelManager } from './manager.js';
-import { injectFeedbackOverlay, isHtmlResponse } from '../routes/comments.js';
+import { isCloudEdition } from '../edition.js';
 import {
   UNLOCK_PATH,
   handleTunnelUnlock,
@@ -22,7 +22,8 @@ import {
 } from './password.js';
 
 const API_PUBLIC_URL = process.env['API_PUBLIC_URL'] ?? 'http://localhost:4000';
-const FEEDBACK_OVERLAY_ENABLED = process.env['FEEDBACK_OVERLAY_ENABLED'] !== 'false';
+const FEEDBACK_OVERLAY_ENABLED =
+  isCloudEdition() && process.env['FEEDBACK_OVERLAY_ENABLED'] !== 'false';
 const JWT_SECRET = process.env['JWT_SECRET'] ?? 'dev-secret-change-me';
 const IS_PRODUCTION = process.env['NODE_ENV'] === 'production';
 
@@ -291,12 +292,15 @@ export async function proxyTunnelRequest(
     let responseBody = decodeBody(response.body);
 
     const contentType = response.headers['content-type'];
-    if (
-      FEEDBACK_OVERLAY_ENABLED &&
-      isHtmlResponse(contentType) &&
-      response.status >= 200 &&
-      response.status < 300
-    ) {
+    const isHtml =
+      typeof contentType === 'string'
+        ? contentType.includes('text/html')
+        : Array.isArray(contentType)
+          ? contentType.some((v) => v?.includes('text/html'))
+          : false;
+
+    if (FEEDBACK_OVERLAY_ENABLED && isHtml && response.status >= 200 && response.status < 300) {
+      const { injectFeedbackOverlay } = await import('../routes/comments.js');
       const html = injectFeedbackOverlay(
         responseBody.toString('utf8'),
         session.dbTunnelId,

@@ -1,0 +1,47 @@
+name: Enhancement
+description: Propose a new feature or improvement
+title: '[enhancement]: '
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check [ROADMAP.md](https://github.com/ship-local/shiplocal/blob/main/ROADMAP.md) and [open issues](https://github.com/ship-local/shiplocal/issues) before filing.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What pain point does this solve?
+      placeholder: 'When I share localhost with a client who has a separate API on :4000...'
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should ShipLocal do?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Layer
+      options:
+        - Core (self-host / tunnel engine)
+        - Cloud (managed SaaS / collaboration)
+        - Docs / DX
+        - Unsure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: willing
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to open a PR for this
+          required: false

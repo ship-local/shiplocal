@@ -15,7 +15,7 @@ import {
   parseTunnelHost,
 } from '@shiplocal/shared';
 import { checkDatabaseConnection, prisma } from './db.js';
-import { registerCommentRoutes } from './routes/comments.js';
+import { isCloudEdition } from './edition.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerProjectRoutes } from './routes/projects.js';
 import { registerTunnelRoutes } from './routes/tunnels.js';
@@ -70,7 +70,10 @@ initTunnelManager({
 });
 
 registerAuthRoutes(app);
-registerCommentRoutes(app);
+if (isCloudEdition()) {
+  const { registerCommentRoutes } = await import('./routes/comments.js');
+  registerCommentRoutes(app);
+}
 registerProjectRoutes(app);
 registerTunnelRoutes(app, tunnelDomain, port);
 registerTunnelWebSocket(app);

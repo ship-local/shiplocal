@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { CommentSummary, ProjectSummary, TunnelSummary } from '@shiplocal/shared';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { isCloudEdition } from '@/lib/edition';
 
 const LAYOUT_STORAGE_KEY = 'shiplocal_dashboard_layout';
 
@@ -55,15 +56,22 @@ export default function DashboardPage() {
   const loadData = useCallback(async () => {
     if (!token) return;
 
-    const [projectsRes, tunnelsRes, commentsRes] = await Promise.all([
+    const [projectsRes, tunnelsRes] = await Promise.all([
       apiFetch<{ projects: ProjectSummary[] }>('/api/projects', { token }),
       apiFetch<{ tunnels: TunnelSummary[] }>('/api/tunnels', { token }),
-      apiFetch<{ comments: CommentSummary[] }>('/api/comments', { token }),
     ]);
 
     setProjects(projectsRes.projects);
     setTunnels(tunnelsRes.tunnels);
-    setComments(commentsRes.comments);
+
+    if (isCloudEdition()) {
+      const commentsRes = await apiFetch<{ comments: CommentSummary[] }>('/api/comments', {
+        token,
+      });
+      setComments(commentsRes.comments);
+    } else {
+      setComments([]);
+    }
   }, [token]);
 
   useEffect(() => {
@@ -118,7 +126,7 @@ export default function DashboardPage() {
     }
   }
 
-  const feedbackSection = (
+  const feedbackSection = isCloudEdition() ? (
     <section style={cardStyle}>
       <div style={sectionHeaderStyle}>
         <h2 style={sectionTitleStyle}>Client feedback</h2>
@@ -178,9 +186,7 @@ export default function DashboardPage() {
         </ul>
       )}
     </section>
-  );
-
-  const tunnelsSection = (
+  ) : null;
     <section style={cardStyle}>
       <h2 style={{ ...sectionTitleStyle, marginBottom: '1rem' }}>Active tunnels</h2>
       {tunnels.length === 0 ? (
@@ -306,14 +312,14 @@ export default function DashboardPage() {
 
   let content: React.ReactNode;
 
-  if (layout === 'split') {
+  if (isCloudEdition() && layout === 'split') {
     content = (
       <div className="dashboard-split">
         <div style={{ minWidth: 0 }}>{feedbackSection}</div>
         {sidebar}
       </div>
     );
-  } else if (layout === 'board') {
+  } else if (isCloudEdition() && layout === 'board') {
     content = (
       <div className="dashboard-board">
         {feedbackSection}
@@ -321,13 +327,15 @@ export default function DashboardPage() {
         {projectsSection}
       </div>
     );
-  } else {
+  } else if (isCloudEdition() && layout === 'focus') {
     content = (
       <>
         <div style={{ marginBottom: '1.25rem' }}>{feedbackSection}</div>
         <div className="dashboard-focus-secondary">{sidebar}</div>
       </>
     );
+  } else {
+    content = sidebar;
   }
 
   if (loading || fetching) {
@@ -396,30 +404,32 @@ export default function DashboardPage() {
         </div>
 
         <div style={headerActionsStyle}>
-          <div>
-            <p style={layoutLabelStyle}>Layout</p>
-            <div
-              className="dashboard-layout-toggle"
-              role="radiogroup"
-              aria-label="Dashboard layout"
-            >
-              {LAYOUT_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className="dashboard-layout-option"
-                  role="radio"
-                  aria-checked={layout === option.id}
-                  aria-label={option.description}
-                  title={option.description}
-                  data-active={layout === option.id}
-                  onClick={() => selectLayout(option.id)}
-                >
-                  {option.label}
-                </button>
-              ))}
+          {isCloudEdition() ? (
+            <div>
+              <p style={layoutLabelStyle}>Layout</p>
+              <div
+                className="dashboard-layout-toggle"
+                role="radiogroup"
+                aria-label="Dashboard layout"
+              >
+                {LAYOUT_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className="dashboard-layout-option"
+                    role="radio"
+                    aria-checked={layout === option.id}
+                    aria-label={option.description}
+                    title={option.description}
+                    data-active={layout === option.id}
+                    onClick={() => selectLayout(option.id)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
           <button
             onClick={() => {
               logout();
