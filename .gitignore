@@ -35,6 +35,7 @@ coverage
 # Internal planning docs (not for repo)
 discuss*.md
 DEVELOPMENT.md
+docs/articles/
 
 # Misc
 *.tsbuildinfo
