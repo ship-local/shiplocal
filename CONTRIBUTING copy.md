@@ -46,48 +46,6 @@ pnpm dev
 
 Full guide: [docs/quickstart.md](docs/quickstart.md)
 
-## Troubleshooting / Common Setup Issues
-
-If you run into issues during `pnpm install` or setup, check these common fixes:
-
-### 1. `pnpm` command not recognized
-
-- **Reason:** `pnpm` is not installed globally on your machine, or your terminal environment path is missing it.
-- **Fix:** You can either temporarily substitute it by running `npm install`, or install `pnpm` globally using:
-  ```bash
-  npm install -g pnpm
-  ```
-
-### 2. Node.js Version Blocker (Prisma Preinstall Error)_ **Reason:** Your current local Node.js version is too old. Prisma v7+ strictly requires Node.js versions **20.19+**, **22.12+**, or **24.0+**._ **Fix:** Upgrade Node.js using your version manager or built-in pnpm environment tools:
-
-```bash
-# Using pnpm environment manager:
-pnpm env use --global lts
-
-# Or using NVM:
-nvm install lts
-nvm use lts
-```
-
-### 3. `PrismaConfigEnvError` during `pnpm db:generate`
-
-- **Reason:** Prisma v7 no longer loads `.env` files automatically by default during the initial `pnpm install` postinstall hooks, which triggers a crash in monorepo workspaces.\* **Fix:** Run the installer while injecting a temporary environment variable placeholder directly into the terminal execution:
-
-  ```bash
-  # On Windows (PowerShell):
-  \$env:DATABASE_URL="postgresql://placeholder:5432" ; pnpm install
-
-  # On macOS / Linux (Bash/Zsh):
-  DATABASE_URL="postgresql://placeholder:5432" pnpm install
-  ```
-
-  _(Alternatively, ensure your local config file explicitly boots environment modules using `import "dotenv/config";` at the very top)._
-
-  ### 4. `'C:\Users\Your'` is not recognized as an internal or external command
-
-* **Reason:** Turborepo or certain workspace scripts break if your Windows user profile folder contains a space (e.g., `C:\Users\John Doe\`). Windows truncates the execution command at the space.
-* **Fix:** Move your project repository out of your user directory into a root directory path without any spaces (e.g., `C:\dev\shiplocal\`), or access your path using the Windows 8.3 short name format (`cd C:\Users\JOHNDO~1\...`).
-
 ## Project layout
 
 ```
