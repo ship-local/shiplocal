@@ -22,9 +22,11 @@ From your machine (full monorepo):
 ```bash
 cd /path/to/ship-local
 
-# Add private remote (keep origin as public target, or rename as below)
 git remote add cloud https://github.com/ship-local/cloud.git
-git push -u cloud main
+
+# Push your latest branch — NOT stale local main if you work on a feature branch:
+git push -u cloud HEAD:main
+# or after merging: git push -u cloud main
 ```
 
 **Recommended remotes after setup:**
@@ -52,8 +54,10 @@ chmod +x scripts/sync-core-public.sh
 cd ../shiplocal-core
 git add -A
 git commit -m "chore: initial Core open-source release"
-git push -u origin main
+git push -u origin main --force
 ```
+
+**Important:** The Core sync creates a **new git history** (no shared commits with the old full monorepo). Do **not** `git pull` — use `--force` to replace public `main` with Core. This is intentional.
 
 ### 3. Make the public repo visible
 
@@ -118,7 +122,7 @@ NEXT_PUBLIC_SHIPLOCAL_EDITION=cloud
 
 ```bash
 ./scripts/sync-core-public.sh
-cd ../shiplocal-core && git add -A && git commit -m "sync: core" && git push origin main
+cd ../shiplocal-core && git add -A && git commit -m "sync: core" && git push origin main --force
 ```
 
 4. **File GitHub issues** on the public repo (issues are disabled or invisible on private repos for community)
@@ -155,6 +159,23 @@ The `shiplocal` npm package publishes from `packages/cli` in either repo. Public
 ---
 
 ## Troubleshooting
+
+**`git push` rejected / `refusing to merge unrelated histories` on shiplocal-core**
+
+The Core repo is a fresh snapshot — it does not share history with the old full monorepo on GitHub. **Do not pull or merge.** Push with:
+
+```bash
+git push origin main --force
+```
+
+**Pushed stale code to `cloud`**
+
+If you ran `git push cloud main` while on a feature branch, you pushed old local `main`, not your current work. Fix:
+
+```bash
+git push cloud feat/your-branch:main
+# or: git checkout main && git merge feat/your-branch && git push cloud main
+```
 
 **Build fails in Core repo without feedback-overlay**
 
