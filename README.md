@@ -54,6 +54,7 @@ pnpm tunnel 3000 --password demo  # password-protected preview
 | [docs/self-hosting.md](docs/self-hosting.md) | Run on your own server    |
 | [docs/deploy.md](docs/deploy.md)             | Production VPS deployment |
 | [docs/publish-cli.md](docs/publish-cli.md)   | npm publish checklist     |
+| [ROADMAP.md](ROADMAP.md)                     | Public product roadmap    |
 
 ## Project structure
 
