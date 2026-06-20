@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { HealthStatus } from '@/components/health-status';
+import { SiteHeader } from '@/components/site-header';
 
 const steps = [
   {
@@ -18,73 +19,83 @@ const steps = [
 
 export default function HomePage() {
   return (
-    <main style={{ maxWidth: 960, margin: '0 auto', padding: '4rem 1.5rem' }}>
-      <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
-        ShipLocal
-      </p>
-      <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 700, marginBottom: '1rem' }}>
-        From localhost to client-ready.
-      </h1>
-      <p
-        style={{ color: 'var(--muted)', fontSize: '1.125rem', marginBottom: '2rem', maxWidth: 640 }}
-      >
-        Share a live preview link in seconds. Clients leave visual feedback on the actual page — no
-        deploys, no screenshot ping-pong.
-      </p>
-
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '3.5rem', flexWrap: 'wrap' }}>
-        <Link href="/register" style={primaryButtonStyle}>
-          Get started free
-        </Link>
-        <Link href="/login" style={secondaryButtonStyle}>
-          Sign in
-        </Link>
-        <a
-          href="https://github.com/ship-local/shiplocal"
-          target="_blank"
-          rel="noreferrer"
-          style={secondaryButtonStyle}
-        >
-          View on GitHub
-        </a>
-      </div>
-
-      <section style={sectionStyle}>
-        <h2 style={sectionTitleStyle}>How it works</h2>
-        <div
+    <>
+      <SiteHeader active="home" />
+      <main style={{ maxWidth: 960, margin: '0 auto', padding: '2rem 1.5rem 4rem' }}>
+        <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+          ShipLocal
+        </p>
+        <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 700, marginBottom: '1rem' }}>
+          From localhost to client-ready.
+        </h1>
+        <p
           style={{
-            display: 'grid',
-            gap: '1rem',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            color: 'var(--muted)',
+            fontSize: '1.125rem',
+            marginBottom: '2rem',
+            maxWidth: 640,
           }}
         >
-          {steps.map((step) => (
-            <article key={step.title} style={stepCardStyle}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-                {step.title}
-              </h3>
-              <p style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0 }}>{step.body}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+          Share a live preview link in seconds. Clients leave visual feedback on the actual page —
+          no deploys, no screenshot ping-pong.
+        </p>
 
-      <section style={{ ...sectionStyle, marginTop: '2rem' }}>
-        <h2 style={sectionTitleStyle}>Quick install</h2>
-        <pre style={codeBlockStyle}>
-          {`npm install -g shiplocal
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '3.5rem', flexWrap: 'wrap' }}>
+          <Link href="/register" style={primaryButtonStyle}>
+            Get started free
+          </Link>
+          <Link href="/login" style={secondaryButtonStyle}>
+            Sign in
+          </Link>
+          <a
+            href="https://github.com/ship-local/shiplocal"
+            target="_blank"
+            rel="noreferrer"
+            style={secondaryButtonStyle}
+          >
+            View on GitHub
+          </a>
+        </div>
+
+        <section style={sectionStyle}>
+          <h2 style={sectionTitleStyle}>How it works</h2>
+          <div
+            style={{
+              display: 'grid',
+              gap: '1rem',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            }}
+          >
+            {steps.map((step) => (
+              <article key={step.title} style={stepCardStyle}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                  {step.title}
+                </h3>
+                <p style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0 }}>
+                  {step.body}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section style={{ ...sectionStyle, marginTop: '2rem' }}>
+          <h2 style={sectionTitleStyle}>Quick install</h2>
+          <pre style={codeBlockStyle}>
+            {`npm install -g shiplocal
 shiplocal login
 shiplocal 3000`}
-        </pre>
-        <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginTop: '0.75rem' }}>
-          Self-hosting? See <code>docs/self-hosting.md</code> in the repo.
-        </p>
-      </section>
+          </pre>
+          <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginTop: '0.75rem' }}>
+            Self-hosting? See <code>docs/self-hosting.md</code> in the repo.
+          </p>
+        </section>
 
-      <section style={{ marginTop: '2rem' }}>
-        <HealthStatus />
-      </section>
-    </main>
+        <section style={{ marginTop: '2rem' }}>
+          <HealthStatus />
+        </section>
+      </main>
+    </>
   );
 }
 
