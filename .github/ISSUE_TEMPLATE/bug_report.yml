@@ -1,0 +1,74 @@
+name: Bug report
+description: Something is broken or behaving unexpectedly
+title: '[bug]: '
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please search [existing issues](https://github.com/ship-local/shiplocal/issues) first.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Clear description of the bug
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `shiplocal 3000`
+        2. Open preview URL
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - CLI
+        - Tunnel server / proxy
+        - Dashboard
+        - Feedback overlay
+        - Self-hosting / deploy
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: CLI version (`shiplocal --version`) or git commit
+      placeholder: '0.1.5 or main @ abc1234'
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: 'macOS 14, Node 22 / ShipLocal Cloud / self-hosted VPS'
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Redact tokens and private URLs
+      render: shell

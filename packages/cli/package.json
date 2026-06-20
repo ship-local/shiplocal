@@ -1,0 +1,55 @@
+{
+  "name": "shiplocal",
+  "version": "0.1.5",
+  "description": "Share localhost with clients in seconds",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ship-local/shiplocal.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/ship-local/shiplocal#readme",
+  "bugs": {
+    "url": "https://github.com/ship-local/shiplocal/issues"
+  },
+  "keywords": [
+    "tunnel",
+    "localhost",
+    "ngrok",
+    "devtools",
+    "preview",
+    "feedback"
+  ],
+  "bin": {
+    "shiplocal": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "tsc -p tsconfig.json --watch",
+    "lint": "eslint src/",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "commander": "^14.0.0",
+    "ws": "^8.18.2"
+  },
+  "devDependencies": {
+    "@shiplocal/shared": "workspace:*",
+    "@shiplocal/tunnel-client": "workspace:*",
+    "@types/node": "^22.15.30",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,33 @@
+# Core edition — tunnel server without feedback overlay
+FROM node:22-alpine AS base
+ENV CI=1 SHIPLOCAL_EDITION=core
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+WORKDIR /app
+
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY apps/server/package.json apps/server/
+COPY packages/shared/package.json packages/shared/
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
+FROM base AS build
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN rm -rf node_modules && pnpm install --frozen-lockfile
+RUN pnpm --filter @shiplocal/shared build \
+ && pnpm --filter @shiplocal/server build \
+ && pnpm --filter @shiplocal/server db:generate
+
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production SHIPLOCAL_EDITION=core
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/apps/server/dist ./apps/server/dist
+COPY --from=build /app/apps/server/package.json ./apps/server/package.json
+COPY --from=build /app/apps/server/prisma ./apps/server/prisma
+COPY --from=build /app/apps/server/prisma.config.ts ./apps/server/
+COPY --from=build /app/apps/server/src/generated ./apps/server/src/generated
+COPY --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
+EXPOSE 4000
+CMD ["node", "apps/server/dist/index.js"]

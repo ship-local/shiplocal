@@ -1,0 +1,38 @@
+# ShipLocal production — API + Postgres
+# Dashboard and Caddy run separately (see docs/deploy.md)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shiplocal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: shiplocal
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shiplocal -d shiplocal"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ../apps/server/.env
+    environment:
+      DATABASE_URL: postgresql://shiplocal:${POSTGRES_PASSWORD:-change-me}@postgres:5432/shiplocal?schema=public
+      HOST: 0.0.0.0
+      PORT: 4000
+    ports:
+      - "4000:4000"
+
+volumes:
+  postgres_data:

@@ -1,0 +1,33 @@
+{
+  "name": "shiplocal",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
+    "db:generate": "pnpm --filter @shiplocal/server db:generate",
+    "db:migrate": "pnpm --filter @shiplocal/server db:migrate",
+    "db:push": "pnpm --filter @shiplocal/server db:push",
+    "db:studio": "pnpm --filter @shiplocal/server db:studio",
+    "docker:up": "docker compose -f docker/docker-compose.yml up -d",
+    "docker:down": "docker compose -f docker/docker-compose.yml down",
+    "tunnel": "node packages/cli/dist/index.js",
+    "publish:cli": "pnpm --filter @shiplocal/shared build && pnpm --filter @shiplocal/tunnel-client build && pnpm --filter shiplocal build && pnpm --filter shiplocal publish --access public --no-git-checks",
+    "postinstall": "pnpm db:generate"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "eslint": "^9.28.0",
+    "prettier": "^3.5.3",
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.34.0"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20"
+  }
+}

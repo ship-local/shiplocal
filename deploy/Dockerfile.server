@@ -1,0 +1,55 @@
+# Multi-stage build for ShipLocal API server
+FROM node:22-alpine AS base
+ENV CI=1
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+RUN pnpm config set store-dir /pnpm/store --global
+WORKDIR /app
+
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY apps/server/package.json apps/server/
+COPY packages/shared/package.json packages/shared/
+COPY packages/feedback-overlay/package.json packages/feedback-overlay/
+# During image build we don't have the Prisma schema copied yet, but pnpm
+# runs workspace postinstall hooks (which run prisma generate). Skip scripts
+# here and generate later after `COPY . .`.
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
+FROM base AS build
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+# Now that the full repo is present (including prisma/schema.prisma), do a clean install
+# with scripts enabled so platform binaries (esbuild) and Prisma are set up correctly.
+RUN rm -rf node_modules && pnpm install --frozen-lockfile
+RUN pnpm --filter @shiplocal/shared build \
+ && pnpm --filter @shiplocal/feedback-overlay build \
+ && pnpm --filter @shiplocal/server build \
+ && pnpm --filter @shiplocal/server db:generate
+
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+# pnpm's node_modules contains symlinks into its content-addressable store.
+# Copy the store into the runtime image so those symlinks resolve.
+COPY --from=build /pnpm/store /pnpm/store
+
+# Copy pnpm workspace node_modules (root + per-package). Workspace deps like `zod`
+# for @shiplocal/shared live under packages/shared/node_modules, not only at root.
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/apps/server/node_modules ./apps/server/node_modules
+COPY --from=build /app/packages/shared/node_modules ./packages/shared/node_modules
+
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --from=build /app/apps/server/dist ./apps/server/dist
+COPY --from=build /app/apps/server/package.json ./apps/server/package.json
+COPY --from=build /app/apps/server/prisma ./apps/server/prisma
+COPY --from=build /app/apps/server/prisma.config.ts ./apps/server/
+COPY --from=build /app/apps/server/src/generated ./apps/server/src/generated
+COPY --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
+COPY --from=build /app/packages/feedback-overlay/dist ./packages/feedback-overlay/dist
+
+EXPOSE 4000
+CMD ["node", "apps/server/dist/index.js"]
