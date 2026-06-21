@@ -137,8 +137,45 @@ function createStyles(): void {
     }
     #shiplocal-submit { background: #3b82f6; color: white; }
     #shiplocal-cancel { background: #f4f4f5; color: #111; }
+    #shiplocal-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+    #shiplocal-toast {
+      position: fixed; bottom: 88px; left: 50%; z-index: 2147483647;
+      transform: translateX(-50%) translateY(12px);
+      max-width: min(420px, calc(100vw - 32px));
+      padding: 12px 16px; border-radius: 10px;
+      font: 14px/1.4 system-ui, sans-serif; color: #111;
+      background: white; box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    #shiplocal-toast.visible {
+      opacity: 1; transform: translateX(-50%) translateY(0);
+    }
+    #shiplocal-toast.shiplocal-toast--success { border-left: 4px solid #22c55e; }
+    #shiplocal-toast.shiplocal-toast--error { border-left: 4px solid #ef4444; }
   `;
   document.head.appendChild(style);
+}
+
+function showToast(message: string, variant: 'success' | 'error'): void {
+  document.getElementById('shiplocal-toast')?.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'shiplocal-toast';
+  toast.className = `shiplocal-toast--${variant}`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.add('visible');
+  });
+
+  window.setTimeout(() => {
+    toast.classList.remove('visible');
+    window.setTimeout(() => {
+      toast.remove();
+    }, 200);
+  }, 4000);
 }
 
 function init(): void {
@@ -173,9 +210,7 @@ function init(): void {
     if (!enabled) clearHighlight();
   }
 
-  function openModal(element: Element): void {
-    setPickMode(false);
-
+  function openModal(element: Element, screenshot: string | undefined): void {
     const backdrop = document.createElement('div');
     backdrop.id = 'shiplocal-modal-backdrop';
 
@@ -218,7 +253,6 @@ function init(): void {
 
         try {
           const rect = element.getBoundingClientRect();
-          const screenshot = await captureScreenshot(element, [backdrop, btn]);
 
           const response = await fetch(`${apiUrl}/api/comments`, {
             method: 'POST',
@@ -243,11 +277,11 @@ function init(): void {
           }
 
           backdrop.remove();
-          alert('Feedback sent. Thank you!');
+          showToast('Feedback sent. Thank you!', 'success');
         } catch {
           submit.textContent = 'Send feedback';
           submit.removeAttribute('disabled');
-          alert('Could not send feedback. Please try again.');
+          showToast('Could not send feedback. Please try again.', 'error');
         }
       })();
     };
@@ -282,7 +316,12 @@ function init(): void {
 
       event.preventDefault();
       event.stopPropagation();
-      openModal(target);
+      setPickMode(false);
+
+      void (async () => {
+        const screenshot = await captureScreenshot(target, [btn]);
+        openModal(target, screenshot);
+      })();
     },
     true,
   );

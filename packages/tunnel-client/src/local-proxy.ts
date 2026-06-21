@@ -140,5 +140,8 @@ export async function forwardToLocal(
     }
   }
 
-  throw lastError ?? new Error('Local server unreachable');
+  if (lastError instanceof Error) {
+    throw lastError;
+  }
+  throw new Error('Local server unreachable');
 }
