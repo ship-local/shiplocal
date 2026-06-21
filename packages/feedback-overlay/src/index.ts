@@ -14,7 +14,7 @@ function getConfig(): OverlayConfig | null {
   return { tunnelId, apiUrl };
 }
 
-const SCREENSHOT_PADDING_PX = 48;
+const SCREENSHOT_PADDING_PX = 16;
 
 function getPaddedCaptureRect(element: Element): {
   x: number;

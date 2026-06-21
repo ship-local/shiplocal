@@ -21,6 +21,9 @@ rsync -a --delete \
   --exclude 'apps/server/.env' \
   --exclude 'apps/dashboard/.env.local' \
   --exclude 'packages/feedback-overlay' \
+  --exclude 'apps/server/src/routes/comments.ts' \
+  --exclude 'deploy/Dockerfile.server' \
+  --exclude 'docs/deploy.md' \
   --exclude 'discuss*.md' \
   --exclude 'DEVELOPMENT.md' \
   --exclude 'docs/articles' \

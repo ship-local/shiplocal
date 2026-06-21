@@ -13,6 +13,7 @@ module.exports = {
       interpreter: 'none',
       env: {
         NODE_ENV: 'production',
+        NEXT_PUBLIC_SHIPLOCAL_EDITION: 'cloud',
       },
       autorestart: true,
       max_restarts: 10,

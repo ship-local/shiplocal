@@ -25,8 +25,10 @@ Guide for deploying ShipLocal Cloud to a VPS with HTTPS and wildcard subdomains.
 
 ## 2. Clone and configure
 
+**Production Cloud uses the private repo** — not the public Core repo:
+
 ```bash
-git clone https://github.com/ship-local/shiplocal.git
+git clone git@github.com:ship-local/cloud.git shiplocal
 cd shiplocal
 pnpm install
 cp apps/server/.env.example apps/server/.env
@@ -45,12 +47,18 @@ DASHBOARD_URL=https://app.shiplocal.app
 PORT=4000
 HOST=0.0.0.0
 TUNNEL_EXPIRY_HOURS=8
+
+# Required for Cloud features (feedback overlay, comments API)
+SHIPLOCAL_EDITION=cloud
 ```
 
 Edit `apps/dashboard/.env.local`:
 
 ```env
-NEXT_PUBLIC_API_URL=https://shiplocal.app
+NEXT_PUBLIC_API_URL=https://shiplocal.cloud
+
+# Required for Cloud dashboard (feedback UI)
+NEXT_PUBLIC_SHIPLOCAL_EDITION=cloud
 ```
 
 ## 3. Deploy API server (Docker)
@@ -105,6 +113,7 @@ Ensure `apps/dashboard/.env.local` contains:
 
 ```env
 NEXT_PUBLIC_API_URL=https://shiplocal.cloud
+NEXT_PUBLIC_SHIPLOCAL_EDITION=cloud
 ```
 
 Verify static assets load:
