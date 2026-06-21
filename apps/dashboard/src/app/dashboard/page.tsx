@@ -187,6 +187,8 @@ export default function DashboardPage() {
       )}
     </section>
   ) : null;
+
+  const tunnelsSection = (
     <section style={cardStyle}>
       <h2 style={{ ...sectionTitleStyle, marginBottom: '1rem' }}>Active tunnels</h2>
       {tunnels.length === 0 ? (
