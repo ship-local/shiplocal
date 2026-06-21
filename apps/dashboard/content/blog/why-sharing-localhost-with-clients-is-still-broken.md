@@ -201,4 +201,4 @@ That is the problem ShipLocal is built on. If you are an agency developer, freel
 
 ---
 
-_ShipLocal is open source. Share localhost in seconds. Collect visual client feedback on the live page._
+_ShipLocal is open source. Go from localhost to client-ready in seconds. Collect visual client feedback on the live page. [GitHub](https://github.com/ship-local/shiplocal) · [Dashboard](https://app.shiplocal.cloud)_

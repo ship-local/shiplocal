@@ -31,6 +31,7 @@ services:
       DATABASE_URL: postgresql://shiplocal:${POSTGRES_PASSWORD:-change-me}@postgres:5432/shiplocal?schema=public
       HOST: 0.0.0.0
       PORT: 4000
+      SHIPLOCAL_EDITION: cloud
     ports:
       - "4000:4000"
 

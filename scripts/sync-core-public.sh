@@ -21,6 +21,9 @@ rsync -a --delete \
   --exclude 'apps/server/.env' \
   --exclude 'apps/dashboard/.env.local' \
   --exclude 'packages/feedback-overlay' \
+  --exclude 'apps/server/src/routes/comments.ts' \
+  --exclude 'deploy/Dockerfile.server' \
+  --exclude 'docs/deploy.md' \
   --exclude 'discuss*.md' \
   --exclude 'DEVELOPMENT.md' \
   --exclude 'docs/articles' \
@@ -92,6 +95,7 @@ echo "Next steps:"
 echo "  cd $TARGET"
 echo "  git add -A && git status"
 echo "  git commit -m \"chore: sync Core from Cloud monorepo\""
-echo "  git push -u origin main"
+echo "  git push -u origin main --force"
 echo ""
-echo "Ensure github.com/ship-local/shiplocal is PUBLIC (Settings → Danger zone → Change visibility)."
+echo "Use --force: Core history is unrelated to the old full monorepo on GitHub."
+echo "Do NOT git pull — that causes 'unrelated histories' errors."
