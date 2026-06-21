@@ -3,7 +3,11 @@ title: Why Sharing localhost with Clients Is Still a Broken Developer Experience
 subtitle: The problem is not hosting. The problem is collaboration.
 date: 2026-06-20
 description: Every developer who ships work for clients hits the same wall — deploy just to show progress, or explain localhost over WhatsApp. The gap is collaboration, not hosting.
+series: ShipLocal build series
+series_order: 1
 ---
+
+_Article 1 in the ShipLocal build series — the problem before the architecture._
 
 Every developer who ships work for someone else has lived this moment.
 

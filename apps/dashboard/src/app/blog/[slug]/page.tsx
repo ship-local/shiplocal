@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { BlogMarkdown } from '@/components/blog-markdown';
 import { SiteHeader } from '@/components/site-header';
-import { formatPostDate, getAllPosts, getPostBySlug } from '@/lib/blog';
+import { formatPostDate, getAllPosts, getPostBySlug, getSeriesPosts } from '@/lib/blog';
 
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
@@ -41,6 +41,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     notFound();
   }
 
+  const seriesPosts = post.series ? getSeriesPosts(post.series) : [];
+  const seriesIndex = seriesPosts.findIndex((item) => item.slug === post.slug);
+  const prevInSeries = seriesIndex > 0 ? seriesPosts[seriesIndex - 1] : null;
+  const nextInSeries =
+    seriesIndex >= 0 && seriesIndex < seriesPosts.length - 1 ? seriesPosts[seriesIndex + 1] : null;
+
   return (
     <>
       <SiteHeader active="blog" />
@@ -59,6 +65,17 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
         <article>
           <header style={{ marginBottom: '2.5rem' }}>
+            {post.series && post.seriesOrder ? (
+              <p
+                style={{
+                  color: 'var(--muted)',
+                  fontSize: '0.8125rem',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                {post.series} · Part {post.seriesOrder}
+              </p>
+            ) : null}
             <time
               dateTime={post.date}
               style={{
@@ -97,6 +114,36 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           <div className="blog-content">
             <BlogMarkdown content={post.content} />
           </div>
+
+          {prevInSeries || nextInSeries ? (
+            <nav
+              aria-label="Series navigation"
+              style={{
+                marginTop: '3rem',
+                paddingTop: '1.5rem',
+                borderTop: '1px solid var(--border)',
+                display: 'grid',
+                gap: '1rem',
+              }}
+            >
+              {prevInSeries ? (
+                <Link
+                  href={`/blog/${prevInSeries.slug}`}
+                  style={{ color: 'var(--muted)', fontSize: '0.9375rem' }}
+                >
+                  ← Previous: {prevInSeries.title}
+                </Link>
+              ) : null}
+              {nextInSeries ? (
+                <Link
+                  href={`/blog/${nextInSeries.slug}`}
+                  style={{ color: 'var(--muted)', fontSize: '0.9375rem' }}
+                >
+                  Next: {nextInSeries.title} →
+                </Link>
+              ) : null}
+            </nav>
+          ) : null}
         </article>
       </main>
     </>
