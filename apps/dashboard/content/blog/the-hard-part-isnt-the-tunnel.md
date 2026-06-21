@@ -1,15 +1,13 @@
 ---
 title: The Hard Part of Building a Developer Tunnel Isn't the Tunnel
-subtitle: The hard part of building a developer tunnel isn't forwarding HTTP over WebSocket. It's everything that assumes the world is localhost."
+subtitle: "It's everything that assumes the world is localhost — not the WebSocket part."
 date: 2026-06-21
 description: The hard part of building a developer tunnel isn't forwarding HTTP over WebSocket. It's everything that assumes the world is localhost — headers, addresses, URLs, cookies, CORS, compression, bundle sizes, reconnect loops, and the gap between "works in my terminal" and "works for a client on their phone."
+series: ShipLocal build series
+series_order: 2
 ---
-
-# The Hard Part of Building a Developer Tunnel Isn't the Tunnel
 
 _Article 2 in the ShipLocal build series — architecture depth from production._
-
----
 
 When we started building [ShipLocal](https://github.com/ship-local/shiplocal), the pitch was simple: run `shiplocal 3000`, get a public URL, share it with a client, collect visual feedback on the live preview.
 
@@ -349,7 +347,7 @@ If you're building in this space, test these before you call it done:
 - [ ] App with `/api/*` routes works on tunnel subdomain
 - [ ] App bound to IPv6-only localhost works
 - [ ] Public URL has no internal port number
-- [ ] Bundle &gt; 10 MB loads (or you document the limit)
+- [ ] Bundle > 10 MB loads (or you document the limit)
 - [ ] Stop/disconnect from a remote control UI doesn't auto-reconnect
 - [ ] Dashboard DELETE/POST actions pass CORS preflight from your app origin
 - [ ] `next dev` is not your production dashboard deploy behind a reverse proxy

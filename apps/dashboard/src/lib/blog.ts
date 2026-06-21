@@ -7,6 +7,8 @@ export interface BlogPostMeta {
   subtitle: string;
   date: string;
   description: string;
+  series?: string;
+  seriesOrder?: number;
 }
 
 export interface BlogPost extends BlogPostMeta {
@@ -33,7 +35,13 @@ function parseFrontmatter(raw: string): { meta: Record<string, string>; content:
     const colon = line.indexOf(':');
     if (colon === -1) continue;
     const key = line.slice(0, colon).trim();
-    const value = line.slice(colon + 1).trim();
+    let value = line.slice(colon + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
     meta[key] = value;
   }
 
@@ -51,6 +59,8 @@ function fileToPost(filename: string): BlogPost {
     subtitle: meta.subtitle ?? '',
     date: meta.date ?? '',
     description: meta.description ?? '',
+    series: meta.series || undefined,
+    seriesOrder: meta.series_order ? Number.parseInt(meta.series_order, 10) : undefined,
     content,
   };
 }
@@ -67,6 +77,8 @@ export function getAllPosts(): BlogPostMeta[] {
         subtitle: post.subtitle,
         date: post.date,
         description: post.description,
+        series: post.series,
+        seriesOrder: post.seriesOrder,
       };
     })
     .sort((a, b) => b.date.localeCompare(a.date));
@@ -78,6 +90,12 @@ export function getPostBySlug(slug: string): BlogPost | null {
   } catch {
     return null;
   }
+}
+
+export function getSeriesPosts(series: string): BlogPostMeta[] {
+  return getAllPosts()
+    .filter((post) => post.series === series)
+    .sort((a, b) => (a.seriesOrder ?? 0) - (b.seriesOrder ?? 0));
 }
 
 export function formatPostDate(date: string): string {

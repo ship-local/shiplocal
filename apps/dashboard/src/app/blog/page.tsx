@@ -50,6 +50,9 @@ export default function BlogPage() {
                   }}
                 >
                   {formatPostDate(post.date)}
+                  {post.series && post.seriesOrder
+                    ? ` · ${post.series} · Part ${post.seriesOrder}`
+                    : ''}
                 </time>
                 <h2
                   style={{
