@@ -13,6 +13,14 @@ import { resolveUserFromApiToken } from '../routes/auth.js';
 import { hashPassword } from '../auth/crypto.js';
 import { prisma } from '../db.js';
 import { getTunnelManager } from './manager.js';
+import { registerTunnel } from './register.js';
+import {
+  applyCorsHeaders,
+  buildPreflightHeaders,
+  requestHasCredentials,
+  rewriteSetCookieHeaders,
+} from './response-rewrite.js';
+import { resolveCorsContext } from './cors-context.js';
 import { isCloudEdition } from '../edition.js';
 import {
   UNLOCK_PATH,
@@ -69,6 +77,11 @@ function flattenHeaders(headers: FastifyRequest['headers']): Record<string, stri
   return result;
 }
 
+function headerValue(value: string | string[] | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  return Array.isArray(value) ? value[0] : value;
+}
+
 function applyResponseHeaders(
   reply: FastifyReply,
   headers: Record<string, string | string[]>,
@@ -80,26 +93,6 @@ function applyResponseHeaders(
     if (skip.has(lower)) continue;
     reply.header(key, value);
   }
-}
-
-async function getOrCreateProject(userId: string, projectId?: string) {
-  if (projectId) {
-    const project = await prisma.project.findFirst({
-      where: { id: projectId, userId },
-    });
-    if (project) return project;
-  }
-
-  const existing = await prisma.project.findFirst({
-    where: { userId },
-    orderBy: { createdAt: 'asc' },
-  });
-
-  if (existing) return existing;
-
-  return prisma.project.create({
-    data: { userId, name: 'My Demo Site' },
-  });
 }
 
 export function registerTunnelWebSocket(app: FastifyInstance): void {
@@ -127,42 +120,48 @@ export function registerTunnelWebSocket(app: FastifyInstance): void {
               return;
             }
 
-            const project = await getOrCreateProject(user.id, message.projectId);
-            const subdomain = manager.generateSubdomain();
-            const expiresAt = manager.getExpiryDate();
-            const publicUrl = manager.buildPublicUrl(subdomain);
             const passwordHash = message.password ? await hashPassword(message.password) : null;
 
-            const dbTunnel = await prisma.tunnel.create({
-              data: {
-                projectId: project.id,
-                subdomain,
-                port: message.localPort,
-                status: 'ONLINE',
-                expiresAt,
-                passwordHash,
-              },
+            let result;
+            try {
+              result = await registerTunnel(user.id, message, passwordHash);
+            } catch (err) {
+              socket.send(
+                JSON.stringify({
+                  type: 'error',
+                  message: err instanceof Error ? err.message : 'Registration failed',
+                }),
+              );
+              socket.close();
+              return;
+            }
+
+            const project = await prisma.project.findUniqueOrThrow({
+              where: { id: result.tunnel.projectId },
             });
 
             session = manager.createSession({
               socket,
               localPort: message.localPort,
-              dbTunnelId: dbTunnel.id,
-              projectId: project.id,
+              dbTunnelId: result.tunnel.id,
+              projectId: result.tunnel.projectId,
               userId: user.id,
-              subdomain,
-              publicUrl,
-              expiresAt,
+              subdomain: result.subdomain,
+              publicUrl: result.publicUrl,
+              expiresAt: result.expiresAt,
               passwordHash,
             });
 
             socket.send(
               JSON.stringify({
                 type: 'registered',
-                tunnelId: dbTunnel.id,
-                subdomain: session.subdomain,
-                publicUrl: session.publicUrl,
-                expiresAt: session.expiresAt.toISOString(),
+                tunnelId: result.tunnel.id,
+                subdomain: result.subdomain,
+                publicUrl: result.publicUrl,
+                expiresAt: result.expiresAt.toISOString(),
+                projectSlug: project.slug,
+                targetName: result.tunnel.name,
+                siblingUrls: result.siblingUrls,
               }),
             );
             return;
@@ -215,6 +214,18 @@ export async function proxyTunnelRequest(
 
   const requestPath = pathMatch?.path ?? request.url.split('?')[0] ?? '/';
   const query = request.url.includes('?') ? (request.url.split('?')[1] ?? '') : '';
+
+  const requestHeaders = flattenHeaders(request.headers);
+  const corsContext = await resolveCorsContext(session, requestHeaders);
+
+  if (request.method === 'OPTIONS' && corsContext.isSiblingOrigin && corsContext.origin) {
+    const preflightHeaders = buildPreflightHeaders(corsContext.origin, requestHeaders);
+    for (const [key, value] of Object.entries(preflightHeaders)) {
+      reply.header(key, value);
+    }
+    await reply.code(204).send();
+    return;
+  }
 
   if (session.passwordHash) {
     if (requestPath === UNLOCK_PATH) {
@@ -272,7 +283,7 @@ export async function proxyTunnelRequest(
       method: request.method,
       path: requestPath,
       query,
-      headers: flattenHeaders(request.headers),
+      headers: requestHeaders,
       body: body.length > 0 ? encodeBody(body) : undefined,
     });
 
@@ -288,7 +299,18 @@ export async function proxyTunnelRequest(
       'tunnel request',
     );
 
-    applyResponseHeaders(reply, response.headers);
+    const previewHost = (request.headers.host ?? '').split(':')[0] ?? session.subdomain;
+    const isSecure =
+      request.protocol === 'https' || headerValue(request.headers['x-forwarded-proto']) === 'https';
+
+    let responseHeaders = applyCorsHeaders(
+      response.headers,
+      corsContext,
+      requestHasCredentials(requestHeaders),
+    );
+    responseHeaders = rewriteSetCookieHeaders(responseHeaders, previewHost, isSecure);
+
+    applyResponseHeaders(reply, responseHeaders);
     let responseBody = decodeBody(response.body);
 
     const contentType = response.headers['content-type'];
@@ -319,7 +341,7 @@ export async function proxyTunnelRequest(
 
 export function registerTunnelHttpProxy(app: FastifyInstance, domain: string): void {
   app.route({
-    method: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'],
+    method: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
     url: '/*',
     handler: async (request, reply) => {
       await proxyTunnelRequest(request, reply, domain);

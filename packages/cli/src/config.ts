@@ -5,10 +5,16 @@ import { join } from 'node:path';
 export interface CliConfig {
   apiUrl: string;
   token: string;
+  defaultProjectSlug?: string;
+  tunnels?: Record<string, { tunnelId: string; publicUrl: string }>;
 }
 
 const CONFIG_DIR = join(homedir(), '.shiplocal');
 const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
+
+export function tunnelConfigKey(projectSlug: string, targetName: string): string {
+  return `${projectSlug}:${targetName}`;
+}
 
 export async function loadConfig(): Promise<CliConfig | null> {
   try {
@@ -24,6 +30,27 @@ export async function loadConfig(): Promise<CliConfig | null> {
 export async function saveConfig(config: CliConfig): Promise<void> {
   await mkdir(CONFIG_DIR, { recursive: true });
   await writeFile(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+}
+
+export async function updateTunnelConfig(
+  projectSlug: string,
+  targetName: string,
+  tunnelId: string,
+  publicUrl: string,
+): Promise<void> {
+  const config = (await loadConfig()) ?? { apiUrl: resolveApiUrl(), token: '' };
+  config.defaultProjectSlug = projectSlug;
+  config.tunnels ??= {};
+  config.tunnels[tunnelConfigKey(projectSlug, targetName)] = { tunnelId, publicUrl };
+  await saveConfig(config);
+}
+
+export async function getSavedTunnelId(
+  projectSlug: string,
+  targetName: string,
+): Promise<string | undefined> {
+  const config = await loadConfig();
+  return config?.tunnels?.[tunnelConfigKey(projectSlug, targetName)]?.tunnelId;
 }
 
 export async function clearConfig(): Promise<void> {

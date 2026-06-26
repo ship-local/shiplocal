@@ -130,6 +130,43 @@ export class TunnelManager {
     return this.sessions.get(id);
   }
 
+  getProjectSessions(projectId: string): TunnelSession[] {
+    return [...this.sessions.values()].filter((session) => session.projectId === projectId);
+  }
+
+  replaceSessionSocket(
+    dbTunnelId: string,
+    socket: WebSocket,
+    localPort: number,
+    expiresAt: Date,
+    passwordHash: string | null | undefined,
+  ): TunnelSession {
+    const existing = this.getByDbTunnelId(dbTunnelId);
+    if (!existing) {
+      throw new Error('Session not found for reconnect');
+    }
+
+    for (const pending of existing.pendingRequests.values()) {
+      clearTimeout(pending.timeout);
+      pending.reject(new Error('Tunnel reconnecting'));
+    }
+    existing.pendingRequests.clear();
+
+    if (existing.socket.readyState === existing.socket.OPEN) {
+      existing.socket.close();
+    }
+
+    existing.socket = socket;
+    existing.localPort = localPort;
+    existing.expiresAt = expiresAt;
+    existing.lastPongAt = Date.now();
+    if (passwordHash !== undefined) {
+      existing.passwordHash = passwordHash;
+    }
+
+    return existing;
+  }
+
   isLive(dbTunnelId: string): boolean {
     return this.dbTunnelIndex.has(dbTunnelId);
   }

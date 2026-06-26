@@ -16,7 +16,7 @@ export function registerTunnelRoutes(
     requireAuth(async (_request, reply, user) => {
       const tunnels = await prisma.tunnel.findMany({
         where: { project: { userId: user.id } },
-        include: { project: { select: { name: true } } },
+        include: { project: { select: { name: true, slug: true } } },
         orderBy: { createdAt: 'desc' },
       });
 
@@ -29,6 +29,8 @@ export function registerTunnelRoutes(
             id: tunnel.id,
             projectId: tunnel.projectId,
             projectName: tunnel.project.name,
+            projectSlug: tunnel.project.slug,
+            name: tunnel.name,
             subdomain: tunnel.subdomain,
             port: tunnel.port,
             status: live ? 'ONLINE' : tunnel.status,

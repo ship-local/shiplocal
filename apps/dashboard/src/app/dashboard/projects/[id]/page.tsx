@@ -9,9 +9,11 @@ import { useAuth } from '@/lib/auth-context';
 interface ProjectDetail {
   id: string;
   name: string;
+  slug: string;
   createdAt: string;
   tunnels: Array<{
     id: string;
+    name: string;
     subdomain: string;
     port: number;
     status: string;
@@ -62,7 +64,7 @@ export default function ProjectDetailPage() {
         {project.name}
       </h1>
       <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: '2rem' }}>
-        Created {new Date(project.createdAt).toLocaleString()}
+        Slug: <code>{project.slug}</code> · Created {new Date(project.createdAt).toLocaleString()}
       </p>
 
       <section
@@ -85,9 +87,17 @@ export default function ProjectDetailPage() {
                 key={tunnel.id}
                 style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}
               >
-                <p style={{ fontWeight: 500 }}>{tunnel.isLive ? '🟢 Online' : '🔴 Offline'}</p>
+                <p style={{ fontWeight: 500 }}>
+                  {tunnel.isLive ? '🟢 Online' : '🔴 Offline'} · {tunnel.name}
+                </p>
                 <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
                   Port {String(tunnel.port)}
+                </p>
+                <p style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>
+                  <code>
+                    shiplocal {String(tunnel.port)} --project {project.slug}
+                    {tunnel.name !== 'web' ? ` --name ${tunnel.name}` : ''}
+                  </code>
                 </p>
                 {tunnel.publicUrl ? (
                   <a href={tunnel.publicUrl} target="_blank" rel="noreferrer">

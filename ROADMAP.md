@@ -33,10 +33,11 @@ Unblock frontend + backend demos without the localhost trap.
 
 | Feature                                                  | Status     |
 | -------------------------------------------------------- | ---------- |
-| Multiple tunnel targets per project                      | ⬜ Planned |
+| Multiple tunnel targets per project                      | ✅ Shipped |
 | Path-based routing (`/api/*` → backend, rest → frontend) | ⬜ Planned |
 | WebSocket upgrade for user apps (Socket.io, etc.)        | ⬜ Planned |
-| CORS + cookie rewrite for preview domains                | ⬜ Planned |
+| CORS + cookie rewrite for preview domains                | ✅ Shipped |
+| CLI env rewrite helper (`--rewrite-env`)                 | ✅ Shipped |
 | Webhook use-case docs (Stripe, Paystack, GitHub)         | ⬜ Planned |
 | Feedback reply threads                                   | ⬜ Planned |
 

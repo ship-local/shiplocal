@@ -11,11 +11,20 @@ export const MAX_BODY_BYTES = 50 * 1024 * 1024; // 50 MB
 
 const headersSchema = z.record(z.union([z.string(), z.array(z.string())]));
 
+export const siblingTunnelSchema = z.object({
+  name: z.string(),
+  publicUrl: z.string().url(),
+  port: z.number().int(),
+});
+
 export const registerMessageSchema = z.object({
   type: z.literal('register'),
   localPort: z.number().int().min(1).max(65535),
   token: z.string().optional(),
   projectId: z.string().optional(),
+  projectSlug: z.string().optional(),
+  targetName: z.string().optional(),
+  tunnelId: z.string().optional(),
   password: z.string().min(4).max(128).optional(),
 });
 
@@ -25,6 +34,9 @@ export const registeredMessageSchema = z.object({
   subdomain: z.string(),
   publicUrl: z.string().url(),
   expiresAt: z.string(),
+  projectSlug: z.string().optional(),
+  targetName: z.string().optional(),
+  siblingUrls: z.array(siblingTunnelSchema).optional(),
 });
 
 export const pingMessageSchema = z.object({ type: z.literal('ping') });
@@ -69,6 +81,7 @@ export const tunnelMessageSchema = z.discriminatedUnion('type', [
   terminatedMessageSchema,
 ]);
 
+export type SiblingTunnel = z.infer<typeof siblingTunnelSchema>;
 export type RegisterMessage = z.infer<typeof registerMessageSchema>;
 export type RegisteredMessage = z.infer<typeof registeredMessageSchema>;
 export type PingMessage = z.infer<typeof pingMessageSchema>;

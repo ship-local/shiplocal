@@ -211,10 +211,18 @@ export default function DashboardPage() {
                 <div>
                   <p style={{ fontWeight: 500 }}>
                     {tunnel.isLive ? '🟢' : '🔴'} {tunnel.projectName}
+                    {tunnel.name !== 'web' ? ` · ${tunnel.name}` : ''}
                     {tunnel.passwordProtected ? ' 🔒' : ''}
                   </p>
                   <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
                     Port {String(tunnel.port)} · {tunnel.subdomain}
+                  </p>
+                  <p style={{ color: 'var(--muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                    CLI:{' '}
+                    <code style={{ color: 'var(--foreground)' }}>
+                      shiplocal {String(tunnel.port)} --project {tunnel.projectSlug}
+                      {tunnel.name !== 'web' ? ` --name ${tunnel.name}` : ''}
+                    </code>
                   </p>
                   {tunnel.publicUrl ? (
                     <a
@@ -278,6 +286,10 @@ export default function DashboardPage() {
             <li key={project.id}>
               <Link href={`/dashboard/projects/${project.id}`} style={projectLinkStyle}>
                 <span style={{ fontWeight: 500 }}>{project.name}</span>
+                <span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+                  {' '}
+                  · {project.slug}
+                </span>
                 <span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
                   {project.onlineCount > 0 ? '🟢' : '🔴'} {String(project.onlineCount)}/
                   {String(project.tunnelCount)} online

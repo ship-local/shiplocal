@@ -25,6 +25,33 @@ Key environment variables (`apps/server/.env`):
 
 For local tunnels, set `SHIPLOCAL_DOMAIN=localhost`. Public URLs look like `http://subdomain.localhost:4000`.
 
+## Multi-target full-stack previews
+
+Expose frontend and API as coordinated URLs under one project:
+
+```bash
+# Terminal 1 — frontend (web target)
+shiplocal 3000 --project myapp
+
+# Terminal 2 — API
+shiplocal 4000 --project myapp --name api
+```
+
+This creates flat subdomains:
+
+- `https://myapp.yourdomain.com` → localhost:3000
+- `https://myapp-api.yourdomain.com` → localhost:4000
+
+Set your frontend env to the API tunnel URL, or use the env helper:
+
+```bash
+shiplocal 4000 --project myapp --name api --rewrite-env
+```
+
+The tunnel proxy automatically adds CORS headers when the browser origin is another tunnel in the same project, and rewrites `Set-Cookie` domains from `localhost` to the preview hostname.
+
+Without `--project`, tunnels keep the legacy random subdomain behavior (`bright-badger`, etc.).
+
 ## Production self-host
 
 1. Provision a VPS (Ubuntu 22.04+ recommended).

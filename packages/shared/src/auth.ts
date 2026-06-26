@@ -13,6 +13,7 @@ export const loginSchema = z.object({
 
 export const createProjectSchema = z.object({
   name: z.string().min(1).max(100),
+  slug: z.string().min(2).max(48).optional(),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -34,6 +35,7 @@ export interface AuthResponse {
 export interface ProjectSummary {
   id: string;
   name: string;
+  slug: string;
   createdAt: string;
   tunnelCount: number;
   onlineCount: number;
@@ -43,6 +45,8 @@ export interface TunnelSummary {
   id: string;
   projectId: string;
   projectName: string;
+  projectSlug: string;
+  name: string;
   subdomain: string;
   port: number;
   status: 'ONLINE' | 'OFFLINE' | 'EXPIRED';

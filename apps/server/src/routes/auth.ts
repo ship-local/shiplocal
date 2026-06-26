@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { loginSchema, registerSchema } from '@shiplocal/shared';
 import { prisma } from '../db.js';
+import { createProjectWithSlug } from '../tunnel/register.js';
 import {
   generateApiTokenValue,
   getApiTokenPrefix,
@@ -70,12 +71,7 @@ export function registerAuthRoutes(app: FastifyInstance): void {
       },
     });
 
-    await prisma.project.create({
-      data: {
-        userId: user.id,
-        name: 'My Demo Site',
-      },
-    });
+    await createProjectWithSlug(user.id, 'My Demo Site');
 
     const [token, apiToken] = await Promise.all([
       Promise.resolve(signJwt(app, user)),
@@ -237,9 +233,7 @@ export function registerAuthRoutes(app: FastifyInstance): void {
         },
       });
 
-      await prisma.project.create({
-        data: { userId: user.id, name: 'My Demo Site' },
-      });
+      await createProjectWithSlug(user.id, 'My Demo Site');
     } else if (profile.picture && !user.image) {
       user = await prisma.user.update({
         where: { id: user.id },

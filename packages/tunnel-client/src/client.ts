@@ -12,6 +12,10 @@ export interface TunnelClientOptions {
   localPort: number;
   token?: string;
   password?: string;
+  projectSlug?: string;
+  projectId?: string;
+  targetName?: string;
+  tunnelId?: string;
   onRegistered?: (info: RegisteredMessage) => void;
   onDisconnect?: () => void;
   onTerminated?: (message: string) => void;
@@ -62,6 +66,7 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
   let reconnectAttempt = 0;
   let intentionalClose = false;
   let publicUrl: string | null = null;
+  let registeredTunnelId: string | null = options.tunnelId ?? null;
   let connectPromise: Promise<void> | null = null;
   let connectResolve: (() => void) | null = null;
   let connectReject: ((error: Error) => void) | null = null;
@@ -106,6 +111,7 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
 
     if (message.type === 'registered') {
       publicUrl = message.publicUrl;
+      registeredTunnelId = message.tunnelId;
       reconnectAttempt = 0;
       options.onRegistered?.(message);
 
@@ -185,6 +191,10 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
           localPort: options.localPort,
           token: options.token,
           ...(options.password ? { password: options.password } : {}),
+          ...(options.projectSlug ? { projectSlug: options.projectSlug } : {}),
+          ...(options.projectId ? { projectId: options.projectId } : {}),
+          ...(options.targetName ? { targetName: options.targetName } : {}),
+          ...(registeredTunnelId ? { tunnelId: registeredTunnelId } : {}),
         }),
       );
     });

@@ -36,6 +36,7 @@ model Project {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
+  slug      String   @unique
   createdAt DateTime @default(now())
   tunnels   Tunnel[]
 
@@ -46,6 +47,7 @@ model Tunnel {
   id           String       @id @default(cuid())
   projectId    String
   project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name         String       @default("web")
   subdomain    String       @unique
   port         Int
   status       TunnelStatus @default(OFFLINE)
@@ -54,6 +56,7 @@ model Tunnel {
   expiresAt    DateTime?
   comments     Comment[]
 
+  @@unique([projectId, name])
   @@index([projectId])
 }
 

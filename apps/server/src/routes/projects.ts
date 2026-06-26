@@ -1,5 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import { createProjectSchema } from '@shiplocal/shared';
+import {
+  createProjectSchema,
+  dedupeSlug,
+  isValidProjectSlug,
+  slugifyProjectName,
+} from '@shiplocal/shared';
 import { prisma } from '../db.js';
 import { requireAuth } from '../auth/middleware.js';
 import { getTunnelManager } from '../tunnel/manager.js';
@@ -24,6 +29,7 @@ export function registerProjectRoutes(app: FastifyInstance): void {
         projects: projects.map((project) => ({
           id: project.id,
           name: project.name,
+          slug: project.slug,
           createdAt: project.createdAt.toISOString(),
           tunnelCount: project.tunnels.length,
           onlineCount: project.tunnels.filter((t) => t.status === 'ONLINE' || manager.isLive(t.id))
@@ -38,10 +44,28 @@ export function registerProjectRoutes(app: FastifyInstance): void {
     requireAuth(async (request, reply, user) => {
       const body = createProjectSchema.parse(request.body);
 
+      const requestedSlug = body.slug?.toLowerCase();
+      const baseSlug = (requestedSlug ?? slugifyProjectName(body.name)) || 'project';
+
+      if (!isValidProjectSlug(baseSlug)) {
+        await reply.code(400).send({ error: 'Invalid project slug' });
+        return;
+      }
+
+      const taken = await prisma.project.findMany({ select: { slug: true } });
+      const slugSet = new Set(taken.map((p) => p.slug));
+      const slug = requestedSlug ?? dedupeSlug(baseSlug, slugSet);
+
+      if (requestedSlug && slugSet.has(slug)) {
+        await reply.code(409).send({ error: 'Project slug is already taken' });
+        return;
+      }
+
       const project = await prisma.project.create({
         data: {
           userId: user.id,
           name: body.name,
+          slug,
         },
       });
 
@@ -49,6 +73,7 @@ export function registerProjectRoutes(app: FastifyInstance): void {
         project: {
           id: project.id,
           name: project.name,
+          slug: project.slug,
           createdAt: project.createdAt.toISOString(),
           tunnelCount: 0,
           onlineCount: 0,
@@ -80,11 +105,13 @@ export function registerProjectRoutes(app: FastifyInstance): void {
         project: {
           id: project.id,
           name: project.name,
+          slug: project.slug,
           createdAt: project.createdAt.toISOString(),
           tunnels: project.tunnels.map((tunnel) => {
             const live = manager.getByDbTunnelId(tunnel.id);
             return {
               id: tunnel.id,
+              name: tunnel.name,
               subdomain: tunnel.subdomain,
               port: tunnel.port,
               status: live ? 'ONLINE' : tunnel.status,
