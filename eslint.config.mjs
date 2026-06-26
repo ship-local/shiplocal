@@ -15,4 +15,11 @@ export default tseslint.config(
   {
     ignores: ['**/dist/**', '**/.next/**', '**/node_modules/**', '**/*.config.mjs'],
   },
+  {
+    files: ['**/*.test.ts', '**/*.test.tsx'],
+    rules: {
+      // node:test describe/it return promises handled by the test runner
+      '@typescript-eslint/no-floating-promises': 'off',
+    },
+  },
 );
