@@ -30,6 +30,8 @@ import {
 } from './password.js';
 
 const API_PUBLIC_URL = process.env['API_PUBLIC_URL'] ?? 'http://localhost:4000';
+const DASHBOARD_URL = process.env['DASHBOARD_URL'] ?? 'http://localhost:3001';
+const REGISTER_URL = new URL('/register', DASHBOARD_URL).toString();
 const FEEDBACK_OVERLAY_ENABLED =
   isCloudEdition() && process.env['FEEDBACK_OVERLAY_ENABLED'] !== 'false';
 const JWT_SECRET = process.env['JWT_SECRET'] ?? 'dev-secret-change-me';
@@ -113,7 +115,7 @@ export function registerTunnelWebSocket(app: FastifyInstance): void {
               socket.send(
                 JSON.stringify({
                   type: 'error',
-                  message: 'Authentication required. Run shiplocal login',
+                  message: `Authentication required. Register at ${REGISTER_URL} if you don't have an account, then run shiplocal login`,
                 }),
               );
               socket.close();
