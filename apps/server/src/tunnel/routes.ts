@@ -296,7 +296,7 @@ export async function proxyTunnelRequest(
       typeof contentType === 'string'
         ? contentType.includes('text/html')
         : Array.isArray(contentType)
-          ? contentType.some((v) => v?.includes('text/html'))
+          ? contentType.some((v) => v.includes('text/html'))
           : false;
 
     if (FEEDBACK_OVERLAY_ENABLED && isHtml && response.status >= 200 && response.status < 300) {

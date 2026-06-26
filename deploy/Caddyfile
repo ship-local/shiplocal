@@ -11,14 +11,35 @@
 	}
 }
 
-# Dashboard
+# Dashboard (auth, tunnels, feedback inbox)
 app.shiplocal.cloud {
 	import tls_cloudflare
 	reverse_proxy 127.0.0.1:3001
 }
 
-# API + tunnel previews (wildcard subdomains)
-shiplocal.cloud, *.shiplocal.cloud {
+# Marketing site on apex — API paths still hit the server
+shiplocal.cloud {
+	import tls_cloudflare
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:4000
+	}
+	handle /health {
+		reverse_proxy 127.0.0.1:4000
+	}
+	handle /overlay.js {
+		reverse_proxy 127.0.0.1:4000
+	}
+	handle /tunnel {
+		reverse_proxy 127.0.0.1:4000
+	}
+	handle {
+		reverse_proxy 127.0.0.1:3001
+	}
+}
+
+# Tunnel previews (wildcard subdomains)
+*.shiplocal.cloud {
 	import tls_cloudflare
 	reverse_proxy 127.0.0.1:4000
 }

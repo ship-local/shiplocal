@@ -1,6 +1,27 @@
-import Link from 'next/link';
+import type { Metadata } from 'next';
 import { HealthStatus } from '@/components/health-status';
+import { HomeStructuredData } from '@/components/home-structured-data';
 import { SiteHeader } from '@/components/site-header';
+import { appUrl, SITE_URL } from '@/lib/site';
+
+const META_DESCRIPTION =
+  'ShipLocal is an open-source localhost tunneling platform that lets developers securely share local applications over HTTPS in seconds. Create public preview URLs, self-host the tunnel server, and collaborate with clients before deployment.';
+
+export const metadata: Metadata = {
+  title: 'ShipLocal — Open-source localhost tunneling',
+  description: META_DESCRIPTION,
+  alternates: {
+    canonical: SITE_URL,
+  },
+  openGraph: {
+    title: 'ShipLocal — Open-source localhost tunneling',
+    description: META_DESCRIPTION,
+    url: SITE_URL,
+    siteName: 'ShipLocal',
+    type: 'website',
+    images: [{ url: '/og-image.png' }],
+  },
+};
 
 const steps = [
   {
@@ -9,21 +30,22 @@ const steps = [
   },
   {
     title: '2. Open a tunnel',
-    body: 'Run shiplocal 3000 and share the public URL with your client.',
+    body: 'Run shiplocal 3000 and get a public HTTPS preview URL in seconds.',
   },
   {
-    title: '3. Collect feedback',
-    body: 'Clients click 💬 on the preview, pin comments to elements, and you see screenshots on your dashboard.',
+    title: '3. Share and collaborate',
+    body: 'Send the link to clients or teammates. On ShipLocal Cloud, they can leave visual feedback pinned to elements on the live page.',
   },
 ];
 
 export default function HomePage() {
   return (
     <>
+      <HomeStructuredData />
       <SiteHeader active="home" />
       <main style={{ maxWidth: 960, margin: '0 auto', padding: '2rem 1.5rem 4rem' }}>
         <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
-          ShipLocal
+          ShipLocal Core · Open source
         </p>
         <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 700, marginBottom: '1rem' }}>
           From localhost to client-ready.
@@ -33,20 +55,19 @@ export default function HomePage() {
             color: 'var(--muted)',
             fontSize: '1.125rem',
             marginBottom: '2rem',
-            maxWidth: 640,
+            maxWidth: 720,
+            lineHeight: 1.6,
           }}
         >
-          Share a live preview link in seconds. Clients leave visual feedback on the actual page —
-          no deploys, no screenshot ping-pong.
+          ShipLocal is an open-source localhost tunneling platform that lets developers securely
+          share local applications over HTTPS in seconds. Create public preview URLs, self-host the
+          tunnel server, and collaborate with clients before deployment.
         </p>
 
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '3.5rem', flexWrap: 'wrap' }}>
-          <Link href="/register" style={primaryButtonStyle}>
-            Get started free
-          </Link>
-          <Link href="/login" style={secondaryButtonStyle}>
-            Sign in
-          </Link>
+          <a href={appUrl('/register')} style={primaryButtonStyle}>
+            Try ShipLocal Cloud
+          </a>
           <a
             href="https://github.com/ship-local/shiplocal"
             target="_blank"
@@ -55,9 +76,46 @@ export default function HomePage() {
           >
             View on GitHub
           </a>
+          <a href={appUrl('/login')} style={secondaryButtonStyle}>
+            Sign in to Cloud
+          </a>
         </div>
 
         <section style={sectionStyle}>
+          <h2 style={sectionTitleStyle}>ShipLocal Core vs ShipLocal Cloud</h2>
+          <div
+            style={{
+              display: 'grid',
+              gap: '1rem',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            }}
+          >
+            <article style={stepCardStyle}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                ShipLocal Core
+              </h3>
+              <p
+                style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0, lineHeight: 1.6 }}
+              >
+                MIT-licensed CLI, tunnel server, and dashboard. Install from npm, self-host on your
+                VPS, or point the CLI at any compatible server.
+              </p>
+            </article>
+            <article style={stepCardStyle}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                ShipLocal Cloud
+              </h3>
+              <p
+                style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0, lineHeight: 1.6 }}
+              >
+                Managed SaaS with hosted tunnels, a collaboration dashboard, and visual client
+                feedback on live previews. Free to get started — no self-hosting required.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section style={{ ...sectionStyle, marginTop: '2rem' }}>
           <h2 style={sectionTitleStyle}>How it works</h2>
           <div
             style={{

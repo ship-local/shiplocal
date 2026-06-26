@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { BlogMarkdown } from '@/components/blog-markdown';
 import { SiteHeader } from '@/components/site-header';
 import { formatPostDate, getAllPosts, getPostBySlug, getSeriesPosts } from '@/lib/blog';
+import { siteUrl } from '@/lib/site';
 
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
@@ -24,11 +25,15 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   return {
     title: `${post.title} — ShipLocal Blog`,
     description: post.description,
+    alternates: {
+      canonical: siteUrl(`/blog/${slug}`),
+    },
     openGraph: {
       title: post.title,
       description: post.description,
       type: 'article',
       publishedTime: post.date,
+      url: siteUrl(`/blog/${slug}`),
     },
   };
 }

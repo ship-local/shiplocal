@@ -13,6 +13,7 @@ import {
   DEFAULT_TUNNEL_DOMAIN,
   DEFAULT_TUNNEL_EXPIRY_MS,
   parseTunnelHost,
+  parseTunnelPath,
 } from '@shiplocal/shared';
 import { checkDatabaseConnection, prisma } from './db.js';
 import { isCloudEdition } from './edition.js';
@@ -30,7 +31,6 @@ const port = Number.parseInt(process.env['PORT'] ?? String(DEFAULT_SERVER_PORT),
 const host = process.env['HOST'] ?? '0.0.0.0';
 const tunnelDomain = process.env['SHIPLOCAL_DOMAIN'] ?? DEFAULT_TUNNEL_DOMAIN;
 const apiPublicUrl = process.env['API_PUBLIC_URL'];
-const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:3001';
 const tunnelExpiryMs = process.env['TUNNEL_EXPIRY_HOURS']
   ? Number.parseInt(process.env['TUNNEL_EXPIRY_HOURS'], 10) * 60 * 60 * 1000
   : DEFAULT_TUNNEL_EXPIRY_MS;
@@ -49,6 +49,11 @@ await app.register(rateLimit, {
   global: true,
   max: 200,
   timeWindow: '1 minute',
+  // Vite/webpack dev servers issue dozens of module requests per page load;
+  // tunnel preview traffic must not share the API rate limit bucket.
+  allowList: (request) =>
+    parseTunnelHost(request.headers.host, tunnelDomain) !== null ||
+    parseTunnelPath(request.url) !== null,
 });
 
 await app.register(jwt, {
@@ -106,13 +111,6 @@ app.get('/', async (request, reply) => {
   const subdomain = parseTunnelHost(request.headers.host, tunnelDomain);
   if (subdomain) {
     await proxyTunnelRequest(request, reply, tunnelDomain);
-    return;
-  }
-
-  const hostHeader = request.headers.host?.split(':')[0]?.toLowerCase();
-  const baseDomain = tunnelDomain.split(':')[0]?.toLowerCase();
-  if (hostHeader === baseDomain) {
-    await reply.redirect(dashboardUrl);
     return;
   }
 

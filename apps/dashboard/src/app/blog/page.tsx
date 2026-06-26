@@ -2,10 +2,21 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/site-header';
 import { formatPostDate, getAllPosts } from '@/lib/blog';
+import { siteUrl } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Blog — ShipLocal',
   description: 'Thoughts on localhost sharing, client collaboration, and building developer tools.',
+  alternates: {
+    canonical: siteUrl('/blog'),
+  },
+  openGraph: {
+    title: 'Blog — ShipLocal',
+    description:
+      'Thoughts on localhost sharing, client collaboration, and building developer tools.',
+    url: siteUrl('/blog'),
+    type: 'website',
+  },
 };
 
 export default function BlogPage() {

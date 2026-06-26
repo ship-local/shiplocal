@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { appUrl } from '@/lib/site';
 
 interface SiteHeaderProps {
   active?: 'home' | 'blog';
@@ -50,8 +51,8 @@ export function SiteHeader({ active }: SiteHeaderProps) {
         >
           GitHub
         </a>
-        <Link
-          href="/register"
+        <a
+          href={appUrl('/register')}
           style={{
             background: 'var(--accent)',
             color: 'white',
@@ -63,7 +64,7 @@ export function SiteHeader({ active }: SiteHeaderProps) {
           }}
         >
           Get started
-        </Link>
+        </a>
       </nav>
     </header>
   );
