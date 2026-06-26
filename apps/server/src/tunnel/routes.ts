@@ -340,8 +340,10 @@ export async function proxyTunnelRequest(
 }
 
 export function registerTunnelHttpProxy(app: FastifyInstance, domain: string): void {
+  // OPTIONS is handled by @fastify/cors — registering it here too crashes on startup
+  // ("Method 'OPTIONS' already declared for route '/*'").
   app.route({
-    method: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
+    method: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'],
     url: '/*',
     handler: async (request, reply) => {
       await proxyTunnelRequest(request, reply, domain);

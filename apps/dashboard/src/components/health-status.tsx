@@ -1,4 +1,12 @@
-const SERVER_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:4000';
+const PUBLIC_API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:4000';
+
+/** Server-side health checks hit the API directly — not through Caddy/public URL. */
+function healthCheckBaseUrl(): string {
+  return (
+    process.env['SERVER_INTERNAL_URL'] ??
+    (process.env['NODE_ENV'] === 'production' ? 'http://127.0.0.1:4000' : PUBLIC_API_URL)
+  );
+}
 
 interface HealthData {
   status: string;
@@ -8,7 +16,7 @@ interface HealthData {
 
 async function fetchHealth(): Promise<HealthData | null> {
   try {
-    const res = await fetch(`${SERVER_URL}/health`, {
+    const res = await fetch(`${healthCheckBaseUrl()}/health`, {
       next: { revalidate: 10 },
     });
 
@@ -32,7 +40,9 @@ export async function HealthStatus() {
           padding: '1.25rem',
         }}
       >
-        <p style={{ fontSize: '0.875rem', color: '#ef4444' }}>Server unreachable at {SERVER_URL}</p>
+        <p style={{ fontSize: '0.875rem', color: '#ef4444' }}>
+          API unreachable at {healthCheckBaseUrl()}
+        </p>
         <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.5rem' }}>
           Run <code style={{ color: 'var(--foreground)' }}>pnpm dev</code> and ensure Postgres is
           up.
