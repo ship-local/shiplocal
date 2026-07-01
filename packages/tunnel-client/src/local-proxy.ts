@@ -21,12 +21,7 @@ const HOP_BY_HOP_HEADERS = new Set([
   'upgrade',
 ]);
 
-// Node's http client auto-decompresses gzip/br bodies but leaves these headers intact.
-const STRIP_RESPONSE_HEADERS = new Set([
-  ...HOP_BY_HOP_HEADERS,
-  'content-encoding',
-  'content-length',
-]);
+const STRIP_RESPONSE_HEADERS = new Set([...HOP_BY_HOP_HEADERS, 'content-length']);
 
 function isConnectionRefused(err: unknown): boolean {
   return err instanceof Error && 'code' in err && err.code === 'ECONNREFUSED';
@@ -40,7 +35,7 @@ function sanitizeRequestHeaders(
 
   for (const [key, value] of Object.entries(headers)) {
     const lower = key.toLowerCase();
-    if (HOP_BY_HOP_HEADERS.has(lower) || lower === 'host' || lower === 'accept-encoding') {
+    if (HOP_BY_HOP_HEADERS.has(lower) || lower === 'host') {
       continue;
     }
     result[key] = value;

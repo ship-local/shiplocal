@@ -60,6 +60,27 @@ export const tunnelResponseMessageSchema = z.object({
   body: z.string().optional(),
 });
 
+export const tunnelWebSocketOpenMessageSchema = z.object({
+  type: z.literal('ws-open'),
+  id: z.string(),
+  path: z.string(),
+  query: z.string(),
+  headers: headersSchema,
+});
+
+export const tunnelWebSocketMessageSchema = z.object({
+  type: z.literal('ws-message'),
+  id: z.string(),
+  body: z.string(),
+});
+
+export const tunnelWebSocketCloseMessageSchema = z.object({
+  type: z.literal('ws-close'),
+  id: z.string(),
+  code: z.number().int().optional(),
+  reason: z.string().optional(),
+});
+
 export const errorMessageSchema = z.object({
   type: z.literal('error'),
   message: z.string(),
@@ -77,6 +98,9 @@ export const tunnelMessageSchema = z.discriminatedUnion('type', [
   pongMessageSchema,
   tunnelRequestMessageSchema,
   tunnelResponseMessageSchema,
+  tunnelWebSocketOpenMessageSchema,
+  tunnelWebSocketMessageSchema,
+  tunnelWebSocketCloseMessageSchema,
   errorMessageSchema,
   terminatedMessageSchema,
 ]);
@@ -88,6 +112,9 @@ export type PingMessage = z.infer<typeof pingMessageSchema>;
 export type PongMessage = z.infer<typeof pongMessageSchema>;
 export type TunnelRequestMessage = z.infer<typeof tunnelRequestMessageSchema>;
 export type TunnelResponseMessage = z.infer<typeof tunnelResponseMessageSchema>;
+export type TunnelWebSocketOpenMessage = z.infer<typeof tunnelWebSocketOpenMessageSchema>;
+export type TunnelWebSocketMessage = z.infer<typeof tunnelWebSocketMessageSchema>;
+export type TunnelWebSocketCloseMessage = z.infer<typeof tunnelWebSocketCloseMessageSchema>;
 export type ErrorMessage = z.infer<typeof errorMessageSchema>;
 export type TerminatedMessage = z.infer<typeof terminatedMessageSchema>;
 export type TunnelMessage = z.infer<typeof tunnelMessageSchema>;

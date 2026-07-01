@@ -1,9 +1,13 @@
 import { WebSocket } from 'ws';
 import {
+  decodeBody,
+  encodeBody,
   parseTunnelMessage,
   TUNNEL_WS_PATH,
   type RegisteredMessage,
   type TunnelMessage,
+  type TunnelWebSocketCloseMessage,
+  type TunnelWebSocketOpenMessage,
 } from '@shiplocal/shared';
 import { forwardToLocal } from './local-proxy.js';
 
@@ -60,6 +64,59 @@ function rawDataToString(raw: WebSocket.RawData): string {
   return Buffer.from(raw).toString('utf8');
 }
 
+function rawDataToBuffer(raw: WebSocket.RawData): Buffer {
+  if (typeof raw === 'string') return Buffer.from(raw, 'utf8');
+  if (Buffer.isBuffer(raw)) return raw;
+  if (Array.isArray(raw)) return Buffer.concat(raw);
+  return Buffer.from(raw);
+}
+
+function sanitizeWebSocketHeaders(
+  headers: Record<string, string | string[]>,
+  localPort: number,
+): Record<string, string | string[]> {
+  const result: Record<string, string | string[]> = {};
+  const skip = new Set([
+    'connection',
+    'host',
+    'keep-alive',
+    'proxy-authenticate',
+    'proxy-authorization',
+    'sec-websocket-accept',
+    'sec-websocket-extensions',
+    'sec-websocket-key',
+    'sec-websocket-version',
+    'te',
+    'trailers',
+    'transfer-encoding',
+    'upgrade',
+  ]);
+
+  for (const [key, value] of Object.entries(headers)) {
+    const lower = key.toLowerCase();
+    if (skip.has(lower)) continue;
+    result[key] = lower === 'origin' ? `http://localhost:${String(localPort)}` : value;
+  }
+
+  result['host'] = `localhost:${String(localPort)}`;
+  return result;
+}
+
+function toLocalWebSocketUrl(localPort: number, message: TunnelWebSocketOpenMessage): string {
+  const url = new URL(`ws://localhost:${String(localPort)}`);
+  url.pathname = message.path;
+  url.search = message.query ? `?${message.query}` : '';
+  return url.toString();
+}
+
+function validCloseCode(code: number | undefined): number | undefined {
+  if (code === undefined) return undefined;
+  return (code >= 1000 && code <= 1014 && code !== 1004 && code !== 1005 && code !== 1006) ||
+    (code >= 3000 && code <= 4999)
+    ? code
+    : undefined;
+}
+
 export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
   let ws: WebSocket | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -71,6 +128,8 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
   let connectResolve: (() => void) | null = null;
   let connectReject: ((error: Error) => void) | null = null;
   let hasRegistered = false;
+  const localWebSockets = new Map<string, WebSocket>();
+  const pendingLocalWebSocketMessages = new Map<string, Buffer[]>();
 
   const clearReconnect = () => {
     if (reconnectTimer) {
@@ -83,6 +142,81 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
     connectPromise = new Promise<void>((resolve, reject) => {
       connectResolve = resolve;
       connectReject = reject;
+    });
+  };
+
+  const sendControlMessage = (message: unknown) => {
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message));
+    }
+  };
+
+  const closeLocalWebSockets = () => {
+    for (const socket of localWebSockets.values()) {
+      socket.removeAllListeners();
+      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+        socket.close();
+      }
+    }
+    localWebSockets.clear();
+  };
+
+  const closeLocalWebSocket = (message: TunnelWebSocketCloseMessage) => {
+    const socket = localWebSockets.get(message.id);
+    if (!socket) return;
+
+    localWebSockets.delete(message.id);
+    pendingLocalWebSocketMessages.delete(message.id);
+    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+      socket.close(validCloseCode(message.code), message.reason);
+    }
+  };
+
+  const openLocalWebSocket = (message: TunnelWebSocketOpenMessage) => {
+    const localSocket = new WebSocket(toLocalWebSocketUrl(options.localPort, message), {
+      headers: sanitizeWebSocketHeaders(message.headers, options.localPort),
+      maxPayload: 64 * 1024 * 1024,
+    });
+
+    localWebSockets.set(message.id, localSocket);
+    pendingLocalWebSocketMessages.set(message.id, []);
+
+    localSocket.on('open', () => {
+      const pendingMessages = pendingLocalWebSocketMessages.get(message.id) ?? [];
+      pendingLocalWebSocketMessages.delete(message.id);
+      for (const pendingMessage of pendingMessages) {
+        localSocket.send(pendingMessage);
+      }
+    });
+
+    localSocket.on('message', (data) => {
+      sendControlMessage({
+        type: 'ws-message',
+        id: message.id,
+        body: encodeBody(rawDataToBuffer(data)),
+      });
+    });
+
+    localSocket.on('close', (code, reason) => {
+      localWebSockets.delete(message.id);
+      pendingLocalWebSocketMessages.delete(message.id);
+      sendControlMessage({
+        type: 'ws-close',
+        id: message.id,
+        code,
+        reason: reason.toString('utf8'),
+      });
+    });
+
+    localSocket.on('error', () => {
+      localWebSockets.delete(message.id);
+      pendingLocalWebSocketMessages.delete(message.id);
+      sendControlMessage({
+        type: 'ws-close',
+        id: message.id,
+        code: 1011,
+        reason: 'Local WebSocket connection failed',
+      });
     });
   };
 
@@ -152,7 +286,7 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
     if (message.type === 'request') {
       try {
         const response = await forwardToLocal(options.localPort, message);
-        ws?.send(JSON.stringify(response));
+        sendControlMessage(response);
       } catch (err) {
         const messageText = formatLocalProxyError(err, options.localPort);
         const errorResponse = {
@@ -162,8 +296,29 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
           headers: { 'content-type': 'text/plain; charset=utf-8' },
           body: Buffer.from(messageText).toString('base64'),
         };
-        ws?.send(JSON.stringify(errorResponse));
+        sendControlMessage(errorResponse);
       }
+      return;
+    }
+
+    if (message.type === 'ws-open') {
+      openLocalWebSocket(message);
+      return;
+    }
+
+    if (message.type === 'ws-message') {
+      const localSocket = localWebSockets.get(message.id);
+      const body = decodeBody(message.body);
+      if (localSocket?.readyState === WebSocket.OPEN) {
+        localSocket.send(body);
+      } else if (localSocket?.readyState === WebSocket.CONNECTING) {
+        pendingLocalWebSocketMessages.get(message.id)?.push(body);
+      }
+      return;
+    }
+
+    if (message.type === 'ws-close') {
+      closeLocalWebSocket(message);
     }
   };
 
@@ -205,6 +360,7 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
 
     socket.on('close', () => {
       publicUrl = null;
+      closeLocalWebSockets();
       options.onDisconnect?.();
 
       if (!intentionalClose && !hasRegistered && connectReject) {
@@ -240,6 +396,7 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
     disconnect() {
       intentionalClose = true;
       clearReconnect();
+      closeLocalWebSockets();
 
       if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
         ws.close();

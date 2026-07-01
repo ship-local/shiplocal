@@ -1,5 +1,8 @@
 import { randomUUID } from 'node:crypto';
+import type { IncomingMessage } from 'node:http';
+import type { Socket } from 'node:net';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { WebSocket, WebSocketServer } from 'ws';
 import {
   decodeBody,
   encodeBody,
@@ -8,6 +11,7 @@ import {
   parseTunnelMessage,
   parseTunnelPath,
   TUNNEL_WS_PATH,
+  type TunnelMessage,
 } from '@shiplocal/shared';
 import { resolveUserFromApiToken } from '../routes/auth.js';
 import { hashPassword } from '../auth/crypto.js';
@@ -36,6 +40,15 @@ const FEEDBACK_OVERLAY_ENABLED =
   isCloudEdition() && process.env['FEEDBACK_OVERLAY_ENABLED'] !== 'false';
 const JWT_SECRET = process.env['JWT_SECRET'] ?? 'dev-secret-change-me';
 const IS_PRODUCTION = process.env['NODE_ENV'] === 'production';
+const userWebSocketServer = new WebSocketServer({ noServer: true });
+
+interface BrowserWebSocketChannel {
+  sessionId: string;
+  socket: WebSocket;
+}
+
+const browserWebSockets = new Map<string, BrowserWebSocketChannel>();
+type TunnelWebSocketDataMessage = Extract<TunnelMessage, { type: 'ws-message' | 'ws-close' }>;
 
 function rawDataToString(raw: unknown): string {
   if (typeof raw === 'string') return raw;
@@ -43,6 +56,21 @@ function rawDataToString(raw: unknown): string {
   if (Array.isArray(raw)) return Buffer.concat(raw).toString('utf8');
   if (raw instanceof ArrayBuffer) return Buffer.from(raw).toString('utf8');
   return String(raw);
+}
+
+function rawDataToBuffer(raw: WebSocket.RawData): Buffer {
+  if (typeof raw === 'string') return Buffer.from(raw, 'utf8');
+  if (Buffer.isBuffer(raw)) return raw;
+  if (Array.isArray(raw)) return Buffer.concat(raw);
+  return Buffer.from(raw);
+}
+
+function validCloseCode(code: number | undefined): number | undefined {
+  if (code === undefined) return undefined;
+  return (code >= 1000 && code <= 1014 && code !== 1004 && code !== 1005 && code !== 1006) ||
+    (code >= 3000 && code <= 4999)
+    ? code
+    : undefined;
 }
 
 function collectBody(request: FastifyRequest): Promise<Buffer> {
@@ -68,7 +96,9 @@ function collectBody(request: FastifyRequest): Promise<Buffer> {
   });
 }
 
-function flattenHeaders(headers: FastifyRequest['headers']): Record<string, string | string[]> {
+function flattenHeaders(
+  headers: Record<string, string | string[] | undefined>,
+): Record<string, string | string[]> {
   const result: Record<string, string | string[]> = {};
 
   for (const [key, value] of Object.entries(headers)) {
@@ -84,16 +114,54 @@ function headerValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function isWebSocketOpenOrConnecting(socket: WebSocket): boolean {
+  return socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING;
+}
+
 function applyResponseHeaders(
   reply: FastifyReply,
   headers: Record<string, string | string[]>,
 ): void {
-  const skip = new Set(['transfer-encoding', 'content-encoding', 'content-length']);
+  const skip = new Set(['transfer-encoding', 'content-length']);
 
   for (const [key, value] of Object.entries(headers)) {
     const lower = key.toLowerCase();
     if (skip.has(lower)) continue;
     reply.header(key, value);
+  }
+}
+
+function closeBrowserWebSocketsForSession(sessionId: string): void {
+  for (const [id, channel] of browserWebSockets.entries()) {
+    if (channel.sessionId !== sessionId) continue;
+
+    browserWebSockets.delete(id);
+    if (isWebSocketOpenOrConnecting(channel.socket)) {
+      channel.socket.close(1011, 'Tunnel closed');
+    }
+  }
+}
+
+function handleTunnelWebSocketMessage(
+  sessionId: string,
+  message: TunnelWebSocketDataMessage,
+): void {
+  if (message.type === 'ws-message') {
+    const channel = browserWebSockets.get(message.id);
+    if (!channel || channel.sessionId !== sessionId) return;
+
+    if (channel.socket.readyState === WebSocket.OPEN) {
+      channel.socket.send(decodeBody(message.body));
+    }
+    return;
+  }
+
+  const channel = browserWebSockets.get(message.id);
+  if (!channel || channel.sessionId !== sessionId) return;
+
+  browserWebSockets.delete(message.id);
+  if (isWebSocketOpenOrConnecting(channel.socket)) {
+    channel.socket.close(validCloseCode(message.code), message.reason);
   }
 }
 
@@ -178,6 +246,11 @@ export function registerTunnelWebSocket(app: FastifyInstance): void {
 
           if (message.type === 'response') {
             manager.handleResponse(session, message);
+            return;
+          }
+
+          if (message.type === 'ws-message' || message.type === 'ws-close') {
+            handleTunnelWebSocketMessage(session.id, message);
           }
         } catch (err) {
           app.log.warn({ err }, 'Invalid tunnel WebSocket message');
@@ -187,6 +260,7 @@ export function registerTunnelWebSocket(app: FastifyInstance): void {
 
     socket.on('close', () => {
       if (session) {
+        closeBrowserWebSocketsForSession(session.id);
         manager.removeSession(session);
       }
     });
@@ -323,7 +397,21 @@ export async function proxyTunnelRequest(
           ? contentType.some((v) => v.includes('text/html'))
           : false;
 
-    if (FEEDBACK_OVERLAY_ENABLED && isHtml && response.status >= 200 && response.status < 300) {
+    const contentEncoding = response.headers['content-encoding'];
+    const isEncoded =
+      typeof contentEncoding === 'string'
+        ? contentEncoding.length > 0
+        : Array.isArray(contentEncoding)
+          ? contentEncoding.length > 0
+          : false;
+
+    if (
+      FEEDBACK_OVERLAY_ENABLED &&
+      isHtml &&
+      !isEncoded &&
+      response.status >= 200 &&
+      response.status < 300
+    ) {
       const { injectFeedbackOverlay } = await import('../routes/comments.js');
       const html = injectFeedbackOverlay(
         responseBody.toString('utf8'),
@@ -350,5 +438,83 @@ export function registerTunnelHttpProxy(app: FastifyInstance, domain: string): v
     handler: async (request, reply) => {
       await proxyTunnelRequest(request, reply, domain);
     },
+  });
+}
+
+export function registerTunnelUpgradeProxy(app: FastifyInstance, domain: string): void {
+  app.server.on('upgrade', (request: IncomingMessage, socket: Socket, head: Buffer) => {
+    if (request.url?.startsWith(TUNNEL_WS_PATH)) {
+      return;
+    }
+
+    const manager = getTunnelManager();
+    const hostSubdomain = parseTunnelHost(request.headers.host, domain);
+    const pathMatch = hostSubdomain ? null : parseTunnelPath(request.url ?? '/');
+    const subdomain = hostSubdomain ?? pathMatch?.subdomain;
+
+    if (!subdomain) {
+      socket.destroy();
+      return;
+    }
+
+    const session = manager.getBySubdomain(subdomain);
+    if (!session || session.socket.readyState !== session.socket.OPEN) {
+      socket.destroy();
+      return;
+    }
+
+    const requestPath = pathMatch?.path ?? (request.url ?? '/').split('?')[0] ?? '/';
+    const query = (request.url ?? '').includes('?')
+      ? ((request.url ?? '').split('?')[1] ?? '')
+      : '';
+    const headers = flattenHeaders(request.headers);
+
+    userWebSocketServer.handleUpgrade(request, socket, head, (browserSocket) => {
+      const id = randomUUID();
+      browserWebSockets.set(id, { sessionId: session.id, socket: browserSocket });
+
+      session.socket.send(
+        JSON.stringify({
+          type: 'ws-open',
+          id,
+          path: requestPath,
+          query,
+          headers,
+        }),
+      );
+
+      browserSocket.on('message', (data) => {
+        if (session.socket.readyState !== session.socket.OPEN) {
+          browserSocket.close(1011, 'Tunnel closed');
+          return;
+        }
+
+        session.socket.send(
+          JSON.stringify({
+            type: 'ws-message',
+            id,
+            body: encodeBody(rawDataToBuffer(data)),
+          }),
+        );
+      });
+
+      browserSocket.on('close', (code, reason) => {
+        browserWebSockets.delete(id);
+        if (session.socket.readyState === session.socket.OPEN) {
+          session.socket.send(
+            JSON.stringify({
+              type: 'ws-close',
+              id,
+              code,
+              reason: reason.toString('utf8'),
+            }),
+          );
+        }
+      });
+
+      browserSocket.on('error', () => {
+        browserWebSockets.delete(id);
+      });
+    });
   });
 }

@@ -23,6 +23,7 @@ import { registerTunnelRoutes } from './routes/tunnels.js';
 import { initTunnelManager, getTunnelManager } from './tunnel/manager.js';
 import {
   registerTunnelHttpProxy,
+  registerTunnelUpgradeProxy,
   registerTunnelWebSocket,
   proxyTunnelRequest,
 } from './tunnel/routes.js';
@@ -82,6 +83,7 @@ if (isCloudEdition()) {
 registerProjectRoutes(app);
 registerTunnelRoutes(app, tunnelDomain, port);
 registerTunnelWebSocket(app);
+registerTunnelUpgradeProxy(app, tunnelDomain);
 
 app.get('/health', async () => {
   const databaseConnected = await checkDatabaseConnection();
