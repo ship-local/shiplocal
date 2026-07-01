@@ -33,6 +33,6 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string): Prom
 
   if (!response.ok) {
     const body = await response.text().catch(() => '');
-    throw new Error(`Failed to send email: ${response.status} ${body}`);
+    throw new Error(`Failed to send email: ${String(response.status)} ${body}`);
   }
 }
