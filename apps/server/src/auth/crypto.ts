@@ -27,3 +27,11 @@ export function getApiTokenPrefix(token: string): string {
 export function isApiToken(value: string): boolean {
   return value.startsWith(API_TOKEN_PREFIX);
 }
+
+export function generatePasswordResetToken(): string {
+  return randomBytes(32).toString('hex');
+}
+
+export function hashPasswordResetToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}

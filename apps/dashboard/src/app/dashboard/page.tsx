@@ -444,6 +444,12 @@ export default function DashboardPage() {
               </div>
             </div>
           ) : null}
+          <Link
+            href="/dashboard/account"
+            style={{ ...ghostButtonStyle, textDecoration: 'none', display: 'inline-block' }}
+          >
+            Account
+          </Link>
           <button
             onClick={() => {
               logout();

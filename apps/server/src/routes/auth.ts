@@ -1,18 +1,42 @@
 import type { FastifyInstance } from 'fastify';
-import { loginSchema, registerSchema } from '@shiplocal/shared';
+import {
+  changePasswordSchema,
+  forgotPasswordSchema,
+  loginSchema,
+  registerSchema,
+  resetPasswordSchema,
+} from '@shiplocal/shared';
 import { prisma } from '../db.js';
 import { createProjectWithSlug } from '../tunnel/register.js';
 import {
   generateApiTokenValue,
+  generatePasswordResetToken,
   getApiTokenPrefix,
   hashApiToken,
   hashPassword,
+  hashPasswordResetToken,
   isApiToken,
   verifyPassword,
 } from '../auth/crypto.js';
 import { requireAuth } from '../auth/middleware.js';
+import { sendPasswordResetEmail } from '../email.js';
 
 const DASHBOARD_URL = process.env['DASHBOARD_URL'] ?? 'http://localhost:3001';
+const PASSWORD_RESET_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+
+function toAuthUser(user: {
+  id: string;
+  email: string;
+  name: string | null;
+  passwordHash: string | null;
+}) {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    hasPassword: Boolean(user.passwordHash),
+  };
+}
 
 async function createApiTokenForUser(userId: string): Promise<string> {
   const token = generateApiTokenValue();
@@ -79,7 +103,7 @@ export function registerAuthRoutes(app: FastifyInstance): void {
     ]);
 
     await reply.send({
-      user: { id: user.id, email: user.email, name: user.name },
+      user: toAuthUser(user),
       token,
       apiToken,
     });
@@ -122,16 +146,119 @@ export function registerAuthRoutes(app: FastifyInstance): void {
     }
 
     await reply.send({
-      user: { id: user.id, email: user.email, name: user.name },
+      user: toAuthUser(user),
       token,
       apiToken,
     });
   });
 
+  app.post('/api/auth/forgot-password', authRateLimit, async (request, reply) => {
+    const body = forgotPasswordSchema.parse(request.body);
+
+    const user = await prisma.user.findUnique({ where: { email: body.email } });
+
+    if (user?.passwordHash) {
+      const token = generatePasswordResetToken();
+      const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRY_MS);
+
+      await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+      await prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: hashPasswordResetToken(token),
+          expiresAt,
+        },
+      });
+
+      const resetUrl = new URL('/reset-password', DASHBOARD_URL);
+      resetUrl.searchParams.set('token', token);
+
+      try {
+        await sendPasswordResetEmail(user.email, resetUrl.toString());
+      } catch (err) {
+        request.log.error({ err, userId: user.id }, 'Failed to send password reset email');
+      }
+    }
+
+    await reply.send({
+      ok: true,
+      message: 'If an account exists with that email, a reset link has been sent.',
+    });
+  });
+
+  app.post('/api/auth/reset-password', authRateLimit, async (request, reply) => {
+    const body = resetPasswordSchema.parse(request.body);
+    const tokenHash = hashPasswordResetToken(body.token);
+
+    const resetToken = await prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (!resetToken || resetToken.expiresAt.getTime() <= Date.now()) {
+      await reply.code(400).send({ error: 'Invalid or expired reset link' });
+      return;
+    }
+
+    const passwordHash = await hashPassword(body.password);
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: resetToken.userId },
+        data: { passwordHash },
+      }),
+      prisma.passwordResetToken.delete({ where: { id: resetToken.id } }),
+      prisma.passwordResetToken.deleteMany({ where: { userId: resetToken.userId } }),
+    ]);
+
+    await reply.send({ ok: true, message: 'Password updated. You can sign in now.' });
+  });
+
+  app.post(
+    '/api/auth/change-password',
+    authRateLimit,
+    requireAuth(async (request, reply, authUser) => {
+      const body = changePasswordSchema.parse(request.body);
+
+      const user = await prisma.user.findUnique({ where: { id: authUser.id } });
+      if (!user) {
+        await reply.code(404).send({ error: 'User not found' });
+        return;
+      }
+
+      if (user.passwordHash) {
+        if (!body.currentPassword) {
+          await reply.code(400).send({ error: 'Current password is required' });
+          return;
+        }
+
+        const valid = await verifyPassword(body.currentPassword, user.passwordHash);
+        if (!valid) {
+          await reply.code(401).send({ error: 'Current password is incorrect' });
+          return;
+        }
+      }
+
+      const passwordHash = await hashPassword(body.newPassword);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      });
+
+      await reply.send({ ok: true, message: 'Password updated.' });
+    }),
+  );
+
   app.get(
     '/api/auth/me',
-    requireAuth(async (_request, reply, user) => {
-      await reply.send({ user });
+    requireAuth(async (_request, reply, authUser) => {
+      const user = await prisma.user.findUnique({ where: { id: authUser.id } });
+      if (!user) {
+        await reply.code(404).send({ error: 'User not found' });
+        return;
+      }
+
+      await reply.send({ user: toAuthUser(user) });
     }),
   );
 

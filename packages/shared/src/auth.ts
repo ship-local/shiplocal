@@ -11,6 +11,20 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(128),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8).max(128),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(128).optional(),
+  newPassword: z.string().min(8).max(128),
+});
+
 export const createProjectSchema = z.object({
   name: z.string().min(1).max(100),
   slug: z.string().min(2).max(48).optional(),
@@ -18,12 +32,16 @@ export const createProjectSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 
 export interface AuthUser {
   id: string;
   email: string;
   name: string | null;
+  hasPassword: boolean;
 }
 
 export interface AuthResponse {

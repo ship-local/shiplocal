@@ -1,14 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { FormEvent, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { FormEvent, Suspense, useEffect, useState } from 'react';
 import { getGoogleAuthUrl } from '@/lib/api';
+import { authButtonStyle, authInputStyle } from '@/lib/auth-forms';
 import { useAuth } from '@/lib/auth-context';
 
-export default function LoginPage() {
+function LoginForm() {
   const { login, user, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const resetSuccess = searchParams.get('reset') === '1';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -50,6 +53,12 @@ export default function LoginPage() {
         Manage your tunnels and share localhost with clients.
       </p>
 
+      {resetSuccess ? (
+        <p style={{ color: '#22c55e', fontSize: '0.875rem', marginBottom: '1rem' }}>
+          Password updated. Sign in with your new password.
+        </p>
+      ) : null}
+
       <form onSubmit={(e) => void handleSubmit(e)} style={{ display: 'grid', gap: '1rem' }}>
         <label style={{ display: 'grid', gap: '0.375rem', fontSize: '0.875rem' }}>
           Email
@@ -58,7 +67,7 @@ export default function LoginPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            style={inputStyle}
+            style={authInputStyle}
           />
         </label>
 
@@ -69,13 +78,19 @@ export default function LoginPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            style={inputStyle}
+            style={authInputStyle}
           />
         </label>
 
+        <p style={{ fontSize: '0.8125rem', textAlign: 'right', marginTop: '-0.5rem' }}>
+          <Link href="/forgot-password" style={{ color: 'var(--muted)' }}>
+            Forgot password?
+          </Link>
+        </p>
+
         {error ? <p style={{ color: '#ef4444', fontSize: '0.875rem' }}>{error}</p> : null}
 
-        <button type="submit" disabled={submitting} style={buttonStyle}>
+        <button type="submit" disabled={submitting} style={authButtonStyle}>
           {submitting ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
@@ -94,7 +109,7 @@ export default function LoginPage() {
       <a
         href={getGoogleAuthUrl()}
         style={{
-          ...buttonStyle,
+          ...authButtonStyle,
           display: 'block',
           textAlign: 'center',
           background: 'var(--surface)',
@@ -112,20 +127,16 @@ export default function LoginPage() {
   );
 }
 
-const inputStyle: React.CSSProperties = {
-  padding: '0.625rem 0.75rem',
-  borderRadius: '0.5rem',
-  border: '1px solid var(--border)',
-  background: 'var(--surface)',
-  color: 'var(--foreground)',
-};
-
-const buttonStyle: React.CSSProperties = {
-  padding: '0.625rem 1rem',
-  borderRadius: '0.5rem',
-  border: 'none',
-  background: 'var(--accent)',
-  color: 'white',
-  fontWeight: 500,
-  cursor: 'pointer',
-};
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main style={{ maxWidth: 400, margin: '4rem auto', padding: '0 1.5rem' }}>
+          <p style={{ color: 'var(--muted)' }}>Loading…</p>
+        </main>
+      }
+    >
+      <LoginForm />
+    </Suspense>
+  );
+}
