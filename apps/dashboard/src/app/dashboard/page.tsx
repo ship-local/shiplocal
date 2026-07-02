@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CommentSummary, ProjectSummary, TunnelSummary } from '@shiplocal/shared';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
@@ -42,7 +42,9 @@ export default function DashboardPage() {
   const [actionId, setActionId] = useState<string | null>(null);
   const [expandedScreenshot, setExpandedScreenshot] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [layout, setLayout] = useState<DashboardLayout>('focus');
+  const loadInFlight = useRef(false);
 
   useEffect(() => {
     setLayout(readStoredLayout());
@@ -54,41 +56,49 @@ export default function DashboardPage() {
   }
 
   const loadData = useCallback(async () => {
-    if (!token) return;
+    if (!token || loadInFlight.current) return;
 
-    const [projectsRes, tunnelsRes] = await Promise.all([
-      apiFetch<{ projects: ProjectSummary[] }>('/api/projects', { token }),
-      apiFetch<{ tunnels: TunnelSummary[] }>('/api/tunnels', { token }),
-    ]);
+    loadInFlight.current = true;
+    setLoadError(null);
 
-    setProjects(projectsRes.projects);
-    setTunnels(tunnelsRes.tunnels);
+    try {
+      const [projectsRes, tunnelsRes] = await Promise.all([
+        apiFetch<{ projects: ProjectSummary[] }>('/api/projects', { token }),
+        apiFetch<{ tunnels: TunnelSummary[] }>('/api/tunnels', { token }),
+      ]);
 
-    if (isCloudEdition()) {
-      const commentsRes = await apiFetch<{ comments: CommentSummary[] }>('/api/comments', {
-        token,
-      });
-      setComments(commentsRes.comments);
-    } else {
-      setComments([]);
+      setProjects(projectsRes.projects);
+      setTunnels(tunnelsRes.tunnels);
+
+      if (isCloudEdition()) {
+        const commentsRes = await apiFetch<{ comments: CommentSummary[] }>('/api/comments', {
+          token,
+        });
+        setComments(commentsRes.comments);
+      } else {
+        setComments([]);
+      }
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+    } finally {
+      loadInFlight.current = false;
     }
   }, [token]);
 
   useEffect(() => {
     if (loading) return;
     if (!user || !token) {
+      setFetching(false);
       router.replace('/login');
       return;
     }
 
-    void loadData()
-      .catch(() => undefined)
-      .finally(() => {
-        setFetching(false);
-      });
+    void loadData().finally(() => {
+      setFetching(false);
+    });
 
     const interval = setInterval(() => {
-      void loadData().catch(() => undefined);
+      void loadData();
     }, 5000);
 
     return () => clearInterval(interval);
@@ -466,6 +476,10 @@ export default function DashboardPage() {
         <p style={{ color: '#ef4444', fontSize: '0.875rem', marginBottom: '1rem' }}>
           {actionError}
         </p>
+      ) : null}
+
+      {loadError ? (
+        <p style={{ color: '#ef4444', fontSize: '0.875rem', marginBottom: '1rem' }}>{loadError}</p>
       ) : null}
 
       {content}

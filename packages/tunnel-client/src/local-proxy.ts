@@ -1,5 +1,7 @@
 import http from 'node:http';
 import type { IncomingHttpHeaders } from 'node:http';
+import { promisify } from 'node:util';
+import { brotliCompress, constants as zlibConstants, gzip } from 'node:zlib';
 import {
   decodeBody,
   encodeBody,
@@ -9,6 +11,9 @@ import {
 } from '@shiplocal/shared';
 
 const LOOPBACK_HOSTS = ['127.0.0.1', '::1'] as const;
+const gzipAsync = promisify(gzip);
+const brotliCompressAsync = promisify(brotliCompress);
+const MIN_COMPRESS_BYTES = 1024;
 
 const HOP_BY_HOP_HEADERS = new Set([
   'connection',
@@ -22,6 +27,19 @@ const HOP_BY_HOP_HEADERS = new Set([
 ]);
 
 const STRIP_RESPONSE_HEADERS = new Set([...HOP_BY_HOP_HEADERS, 'content-length']);
+
+const COMPRESSIBLE_CONTENT_TYPES = [
+  'application/javascript',
+  'application/json',
+  'application/manifest+json',
+  'application/rss+xml',
+  'application/vnd.apple.mpegurl',
+  'application/wasm',
+  'application/x-javascript',
+  'application/xml',
+  'image/svg+xml',
+  'text/',
+];
 
 function isConnectionRefused(err: unknown): boolean {
   return err instanceof Error && 'code' in err && err.code === 'ECONNREFUSED';
@@ -59,6 +77,102 @@ function sanitizeResponseHeaders(headers: IncomingHttpHeaders): Record<string, s
   return result;
 }
 
+function headerValue(value: string | string[] | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function getHeader(
+  headers: IncomingHttpHeaders | Record<string, string | string[]>,
+  name: string,
+): string | undefined {
+  const lowerName = name.toLowerCase();
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === lowerName) return headerValue(value);
+  }
+  return undefined;
+}
+
+function mergeVary(existing: string | undefined, value: string): string {
+  if (!existing) return value;
+  const parts = existing.split(',').map((part) => part.trim().toLowerCase());
+  if (parts.includes(value.toLowerCase())) return existing;
+  return `${existing}, ${value}`;
+}
+
+function setHeader(
+  headers: Record<string, string | string[]>,
+  name: string,
+  value: string | string[],
+): Record<string, string | string[]> {
+  const next = Object.fromEntries(
+    Object.entries(headers).filter(([key]) => key.toLowerCase() !== name.toLowerCase()),
+  );
+  next[name] = value;
+  return next;
+}
+
+function stripHeader(
+  headers: Record<string, string | string[]>,
+  name: string,
+): Record<string, string | string[]> {
+  return Object.fromEntries(
+    Object.entries(headers).filter(([key]) => key.toLowerCase() !== name.toLowerCase()),
+  );
+}
+
+function isCompressibleContentType(contentType: string | undefined): boolean {
+  if (!contentType) return false;
+  const normalized = contentType.toLowerCase();
+  if (normalized.includes('text/html')) return false;
+  return COMPRESSIBLE_CONTENT_TYPES.some((type) => normalized.includes(type));
+}
+
+async function maybeCompressResponse(
+  body: Buffer,
+  responseHeaders: IncomingHttpHeaders,
+  requestHeaders: Record<string, string | string[]>,
+): Promise<{ body: Buffer; headers: Record<string, string | string[]> }> {
+  const headers = sanitizeResponseHeaders(responseHeaders);
+
+  if (
+    body.length < MIN_COMPRESS_BYTES ||
+    getHeader(responseHeaders, 'content-encoding') ||
+    getHeader(responseHeaders, 'content-range') ||
+    !isCompressibleContentType(getHeader(responseHeaders, 'content-type'))
+  ) {
+    return { body, headers };
+  }
+
+  const acceptEncoding = getHeader(requestHeaders, 'accept-encoding') ?? '';
+
+  if (/\bbr\b/.test(acceptEncoding)) {
+    const compressed = await brotliCompressAsync(body, {
+      params: {
+        [zlibConstants.BROTLI_PARAM_QUALITY]: 4,
+      },
+    });
+    const vary = mergeVary(getHeader(headers, 'vary'), 'Accept-Encoding');
+    const compressedHeaders = setHeader(stripHeader(headers, 'etag'), 'content-encoding', 'br');
+    return {
+      body: compressed,
+      headers: setHeader(compressedHeaders, 'vary', vary),
+    };
+  }
+
+  if (/\bgzip\b/.test(acceptEncoding)) {
+    const compressed = await gzipAsync(body, { level: 6 });
+    const vary = mergeVary(getHeader(headers, 'vary'), 'Accept-Encoding');
+    const compressedHeaders = setHeader(stripHeader(headers, 'etag'), 'content-encoding', 'gzip');
+    return {
+      body: compressed,
+      headers: setHeader(compressedHeaders, 'vary', vary),
+    };
+  }
+
+  return { body, headers };
+}
+
 function forwardToHost(
   hostname: string,
   localPort: number,
@@ -90,14 +204,22 @@ function forwardToHost(
         });
 
         res.on('end', () => {
-          const responseBody = Buffer.concat(chunks);
-          resolve({
-            type: 'response',
-            id: message.id,
-            status: res.statusCode ?? 502,
-            headers: sanitizeResponseHeaders(res.headers),
-            body: responseBody.length > 0 ? encodeBody(responseBody) : undefined,
-          });
+          void (async () => {
+            const responseBody = Buffer.concat(chunks);
+            const { body: encodedBody, headers } = await maybeCompressResponse(
+              responseBody,
+              res.headers,
+              message.headers,
+            );
+
+            resolve({
+              type: 'response',
+              id: message.id,
+              status: res.statusCode ?? 502,
+              headers,
+              body: encodedBody.length > 0 ? encodeBody(encodedBody) : undefined,
+            });
+          })().catch(reject);
         });
       },
     );

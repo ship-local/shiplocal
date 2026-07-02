@@ -291,6 +291,15 @@ export async function proxyTunnelRequest(
   const requestPath = pathMatch?.path ?? request.url.split('?')[0] ?? '/';
   const query = request.url.includes('?') ? (request.url.split('?')[1] ?? '') : '';
 
+  if (
+    requestPath.startsWith('/api/') ||
+    requestPath === '/health' ||
+    requestPath === '/overlay.js'
+  ) {
+    reply.callNotFound();
+    return;
+  }
+
   const requestHeaders = flattenHeaders(request.headers);
   const corsContext = await resolveCorsContext(session, requestHeaders);
 
@@ -453,12 +462,12 @@ export function registerTunnelUpgradeProxy(app: FastifyInstance, domain: string)
     const subdomain = hostSubdomain ?? pathMatch?.subdomain;
 
     if (!subdomain) {
-      socket.destroy();
       return;
     }
 
     const session = manager.getBySubdomain(subdomain);
     if (!session || session.socket.readyState !== session.socket.OPEN) {
+      socket.write('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n');
       socket.destroy();
       return;
     }

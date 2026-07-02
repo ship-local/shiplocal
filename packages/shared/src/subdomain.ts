@@ -84,6 +84,9 @@ export function buildPublicUrl(
   return `https://${subdomain}.${domain}`;
 }
 
+/** Hostnames that must never be treated as tunnel preview subdomains. */
+const RESERVED_TUNNEL_SUBDOMAINS = new Set(['app', 'www', 'api', 'admin']);
+
 export function parseTunnelHost(hostHeader: string | undefined, domain: string): string | null {
   if (!hostHeader) return null;
 
@@ -102,7 +105,9 @@ export function parseTunnelHost(hostHeader: string | undefined, domain: string):
 
   if (host.endsWith(`.${base}`)) {
     const subdomain = host.slice(0, -(base.length + 1));
-    return subdomain.length > 0 && !subdomain.includes('.') ? subdomain : null;
+    if (subdomain.length === 0 || subdomain.includes('.')) return null;
+    if (RESERVED_TUNNEL_SUBDOMAINS.has(subdomain)) return null;
+    return subdomain;
   }
 
   return null;

@@ -17,7 +17,7 @@ import { isLocalPortOpen } from './local-port.js';
 
 const program = new Command();
 
-program.name('shiplocal').description('Share localhost with clients in seconds').version('0.1.5');
+program.name('shiplocal').description('Share localhost with clients in seconds').version('0.1.6');
 
 program
   .command('login')

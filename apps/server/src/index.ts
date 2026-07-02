@@ -52,9 +52,16 @@ await app.register(rateLimit, {
   timeWindow: '1 minute',
   // Vite/webpack dev servers issue dozens of module requests per page load;
   // tunnel preview traffic must not share the API rate limit bucket.
-  allowList: (request) =>
-    parseTunnelHost(request.headers.host, tunnelDomain) !== null ||
-    parseTunnelPath(request.url) !== null,
+  allowList: (request) => {
+    const path = request.url.split('?')[0] ?? '/';
+    if (path.startsWith('/api/') || path === '/health' || path === '/overlay.js') {
+      return true;
+    }
+    return (
+      parseTunnelHost(request.headers.host, tunnelDomain) !== null ||
+      parseTunnelPath(request.url) !== null
+    );
+  },
 });
 
 await app.register(jwt, {

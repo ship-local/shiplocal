@@ -29,7 +29,7 @@
     "dev": "tsc -p tsconfig.json --watch",
     "lint": "eslint src/",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test src/slug.test.ts",
+    "test": "tsx --test src/**/*.test.ts",
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
