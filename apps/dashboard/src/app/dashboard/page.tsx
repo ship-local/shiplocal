@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth-context';
 import { isCloudEdition } from '@/lib/edition';
 
 const LAYOUT_STORAGE_KEY = 'shiplocal_dashboard_layout';
+const POLL_INTERVAL_MS = 10_000;
 
 type DashboardLayout = 'focus' | 'split' | 'board';
 
@@ -67,14 +68,14 @@ export default function DashboardPage() {
         apiFetch<{ tunnels: TunnelSummary[] }>('/api/tunnels', { token }),
       ]);
 
-      setProjects(projectsRes.projects);
-      setTunnels(tunnelsRes.tunnels);
+      setProjects(projectsRes.projects ?? []);
+      setTunnels(tunnelsRes.tunnels ?? []);
 
       if (isCloudEdition()) {
         const commentsRes = await apiFetch<{ comments: CommentSummary[] }>('/api/comments', {
           token,
         });
-        setComments(commentsRes.comments);
+        setComments(commentsRes.comments ?? []);
       } else {
         setComments([]);
       }
@@ -99,7 +100,7 @@ export default function DashboardPage() {
 
     const interval = setInterval(() => {
       void loadData();
-    }, 5000);
+    }, POLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [loading, user, token, router, loadData]);
