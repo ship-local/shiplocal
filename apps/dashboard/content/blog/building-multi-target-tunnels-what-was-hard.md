@@ -225,4 +225,6 @@ shiplocal 4000 --project myapp --name api
 
 Read the announcement: [Full-Stack Previews Are Here](/blog/full-stack-previews-multiple-tunnel-targets).
 
+**Next in the series:** [Why Next.js Looks Fine Locally but Breaks Through a Tunnel](/blog/why-nextjs-looks-fine-locally-but-breaks-through-a-tunnel) — lessons from testing real dev apps through ShipLocal (coming soon).
+
 Open source: [github.com/ship-local/shiplocal](https://github.com/ship-local/shiplocal).

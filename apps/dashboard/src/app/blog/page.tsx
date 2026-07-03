@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { ComingSoonBadge } from '@/components/coming-soon-badge';
 import { SiteHeader } from '@/components/site-header';
 import { formatPostDate, getAllPosts } from '@/lib/blog';
 import { siteUrl } from '@/lib/site';
@@ -56,14 +57,20 @@ export default function BlogPage() {
                   style={{
                     color: 'var(--muted)',
                     fontSize: '0.8125rem',
-                    display: 'block',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: '0.5rem',
                     marginBottom: '0.5rem',
                   }}
                 >
-                  {formatPostDate(post.date)}
-                  {post.series && post.seriesOrder
-                    ? ` · ${post.series} · Part ${post.seriesOrder}`
-                    : ''}
+                  <span>
+                    {formatPostDate(post.date)}
+                    {post.series && post.seriesOrder
+                      ? ` · ${post.series} · Part ${post.seriesOrder}`
+                      : ''}
+                  </span>
+                  {post.comingSoon ? <ComingSoonBadge /> : null}
                 </time>
                 <h2
                   style={{
@@ -103,7 +110,7 @@ export default function BlogPage() {
                   {post.description}
                 </p>
                 <Link href={`/blog/${post.slug}`} style={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                  Read article →
+                  {post.comingSoon ? 'View outline →' : 'Read article →'}
                 </Link>
               </article>
             </li>

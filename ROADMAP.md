@@ -53,7 +53,7 @@ Optimize the **current** request/response model before considering streaming.
 
 | Feature                                          | Status     |
 | ------------------------------------------------ | ---------- |
-| Binary WebSocket frames (replace base64-in-JSON) | ⬜ Planned |
+| Binary WebSocket frames (replace base64-in-JSON) | ✅ Shipped     |
 | Benchmark suite + before/after metrics           | ⬜ Planned |
 
 ---

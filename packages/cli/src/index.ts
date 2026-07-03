@@ -15,35 +15,46 @@ import {
 import { postJson } from './api.js';
 import { printDoctorResult, runDoctor } from './doctor.js';
 import { isLocalPortOpen } from './local-port.js';
+import { resolveCommandPort } from './port.js';
 
 const program = new Command();
 
-program.name('shiplocal').description('Share localhost with clients in seconds').version('0.1.7');
+program.name('shiplocal').description('Share localhost with clients in seconds').version('0.1.8');
 
-async function runDoctorCommand(options: { port?: string; json?: boolean }): Promise<void> {
-  const port = options.port ? Number.parseInt(options.port, 10) : undefined;
-
-  if (options.port && (port === undefined || Number.isNaN(port) || port < 1 || port > 65535)) {
-    console.error('Error: port must be a number between 1 and 65535');
+async function runDoctorCommand(
+  portArg: string | undefined,
+  options: { port?: string; json?: boolean },
+): Promise<void> {
+  try {
+    const port = resolveCommandPort(portArg, options.port);
+    const result = await runDoctor({ port, json: options.json });
+    printDoctorResult(result, Boolean(options.json));
+    process.exit(result.exitCode);
+  } catch (err) {
+    console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);
   }
-
-  const result = await runDoctor({ port, json: options.json });
-  printDoctorResult(result, Boolean(options.json));
-  process.exit(result.exitCode);
 }
 
 program
-  .command('doctor')
+  .command('doctor [port]')
   .description('Diagnose ShipLocal connectivity and tunnel performance')
-  .option('-p, --port <port>', 'Local app port to benchmark', '3000')
+  .option('-p, --port <port>', 'Local app port (same as the positional port argument)')
   .option('--json', 'Print machine-readable JSON')
+  .addHelpText(
+    'after',
+    `
+Examples:
+  $ shiplocal doctor 5173
+  $ shiplocal doctor --port 8080
+  $ shiplocal benchmark 3001 --json`,
+  )
   .action(runDoctorCommand);
 
 program
-  .command('benchmark')
+  .command('benchmark [port]')
   .description('Alias for `shiplocal doctor`')
-  .option('-p, --port <port>', 'Local app port to benchmark', '3000')
+  .option('-p, --port <port>', 'Local app port (same as the positional port argument)')
   .option('--json', 'Print machine-readable JSON')
   .action(runDoctorCommand);
 

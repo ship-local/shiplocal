@@ -50,6 +50,7 @@ export const tunnelRequestMessageSchema = z.object({
   query: z.string(),
   headers: headersSchema,
   body: z.string().optional(),
+  bodyEncoding: z.literal('binary').optional(),
 });
 
 export const tunnelResponseMessageSchema = z.object({
@@ -58,6 +59,7 @@ export const tunnelResponseMessageSchema = z.object({
   status: z.number().int(),
   headers: headersSchema,
   body: z.string().optional(),
+  bodyEncoding: z.literal('binary').optional(),
 });
 
 export const tunnelWebSocketOpenMessageSchema = z.object({
@@ -71,7 +73,8 @@ export const tunnelWebSocketOpenMessageSchema = z.object({
 export const tunnelWebSocketMessageSchema = z.object({
   type: z.literal('ws-message'),
   id: z.string(),
-  body: z.string(),
+  body: z.string().optional(),
+  bodyEncoding: z.literal('binary').optional(),
 });
 
 export const tunnelWebSocketCloseMessageSchema = z.object({

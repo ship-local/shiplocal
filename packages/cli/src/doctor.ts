@@ -237,7 +237,7 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<DoctorResu
   const token = await resolveToken();
   const port = options.port ?? 3000;
   const checks: DoctorCheck[] = [];
-  const metrics: Record<string, string> = {};
+  const metrics: Record<string, string> = { 'Benchmark port': String(port) };
 
   if (!token) {
     checks.push({

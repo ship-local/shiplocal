@@ -4,3 +4,4 @@ export * from './protocol.js';
 export * from './schemas.js';
 export * from './slug.js';
 export * from './subdomain.js';
+export * from './ws-frame.js';

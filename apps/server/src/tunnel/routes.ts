@@ -4,14 +4,15 @@ import type { Socket } from 'node:net';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { WebSocket, WebSocketServer } from 'ws';
 import {
-  decodeBody,
   encodeBody,
+  getMessageBody,
   MAX_BODY_BYTES,
   parseTunnelHost,
-  parseTunnelMessage,
   parseTunnelPath,
+  sendTunnelWsMessage,
+  TunnelMessageAssembler,
   TUNNEL_WS_PATH,
-  type TunnelMessage,
+  type TunnelMessageWithBody,
 } from '@shiplocal/shared';
 import { resolveUserFromApiToken } from '../routes/auth.js';
 import { hashPassword } from '../auth/crypto.js';
@@ -48,15 +49,7 @@ interface BrowserWebSocketChannel {
 }
 
 const browserWebSockets = new Map<string, BrowserWebSocketChannel>();
-type TunnelWebSocketDataMessage = Extract<TunnelMessage, { type: 'ws-message' | 'ws-close' }>;
-
-function rawDataToString(raw: unknown): string {
-  if (typeof raw === 'string') return raw;
-  if (Buffer.isBuffer(raw)) return raw.toString('utf8');
-  if (Array.isArray(raw)) return Buffer.concat(raw).toString('utf8');
-  if (raw instanceof ArrayBuffer) return Buffer.from(raw).toString('utf8');
-  return String(raw);
-}
+type TunnelWebSocketDataMessage = Extract<TunnelMessageWithBody, { type: 'ws-message' | 'ws-close' }>;
 
 function rawDataToBuffer(raw: WebSocket.RawData): Buffer {
   if (typeof raw === 'string') return Buffer.from(raw, 'utf8');
@@ -151,7 +144,7 @@ function handleTunnelWebSocketMessage(
     if (!channel || channel.sessionId !== sessionId) return;
 
     if (channel.socket.readyState === WebSocket.OPEN) {
-      channel.socket.send(decodeBody(message.body));
+      channel.socket.send(getMessageBody(message));
     }
     return;
   }
@@ -169,11 +162,18 @@ export function registerTunnelWebSocket(app: FastifyInstance): void {
   app.get(TUNNEL_WS_PATH, { websocket: true }, (socket) => {
     const manager = getTunnelManager();
     let session = null as ReturnType<typeof manager.createSession> | null;
+    const messageAssembler = new TunnelMessageAssembler();
 
-    socket.on('message', (raw) => {
+    socket.on('message', (raw, isBinary) => {
       void (async () => {
         try {
-          const message = parseTunnelMessage(rawDataToString(raw));
+          let message: TunnelMessageWithBody | null;
+          try {
+            message = messageAssembler.feed(raw, isBinary);
+          } catch {
+            return;
+          }
+          if (!message) return;
 
           if (message.type === 'register') {
             if (session) return;
@@ -259,6 +259,7 @@ export function registerTunnelWebSocket(app: FastifyInstance): void {
     });
 
     socket.on('close', () => {
+      messageAssembler.reset();
       if (session) {
         closeBrowserWebSocketsForSession(session.id);
         manager.removeSession(session);
@@ -396,7 +397,7 @@ export async function proxyTunnelRequest(
     responseHeaders = rewriteSetCookieHeaders(responseHeaders, previewHost, isSecure);
 
     applyResponseHeaders(reply, responseHeaders);
-    let responseBody = decodeBody(response.body);
+    let responseBody = getMessageBody(response);
 
     const contentType = response.headers['content-type'];
     const isHtml =
@@ -503,12 +504,13 @@ export function registerTunnelUpgradeProxy(app: FastifyInstance, domain: string)
           return;
         }
 
-        session.socket.send(
-          JSON.stringify({
+        sendTunnelWsMessage(
+          session.socket,
+          {
             type: 'ws-message',
             id,
-            body: encodeBody(rawDataToBuffer(data)),
-          }),
+          },
+          rawDataToBuffer(data),
         );
       });
 

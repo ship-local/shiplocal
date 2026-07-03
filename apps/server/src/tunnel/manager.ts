@@ -3,17 +3,19 @@ import type { WebSocket } from 'ws';
 import {
   DEFAULT_TUNNEL_EXPIRY_MS,
   buildPublicUrl as buildTunnelPublicUrl,
+  decodeBody,
   generateSubdomain,
   HEARTBEAT_INTERVAL_MS,
   HEARTBEAT_TIMEOUT_MS,
   REQUEST_TIMEOUT_MS,
+  sendTunnelWsMessage,
   type TunnelRequestMessage,
-  type TunnelResponseMessage,
+  type TunnelResponseWithBody,
 } from '@shiplocal/shared';
 import { prisma } from '../db.js';
 
 export interface PendingRequest {
-  resolve: (response: TunnelResponseMessage) => void;
+  resolve: (response: TunnelResponseWithBody) => void;
   reject: (error: Error) => void;
   timeout: ReturnType<typeof setTimeout>;
 }
@@ -222,7 +224,7 @@ export class TunnelManager {
     session.lastPongAt = Date.now();
   }
 
-  handleResponse(session: TunnelSession, response: TunnelResponseMessage): void {
+  handleResponse(session: TunnelSession, response: TunnelResponseWithBody): void {
     const pending = session.pendingRequests.get(response.id);
     if (!pending) return;
 
@@ -234,7 +236,7 @@ export class TunnelManager {
   forwardRequest(
     session: TunnelSession,
     request: TunnelRequestMessage,
-  ): Promise<TunnelResponseMessage> {
+  ): Promise<TunnelResponseWithBody> {
     return new Promise((resolve, reject) => {
       if (session.socket.readyState !== session.socket.OPEN) {
         reject(new Error('Tunnel is offline'));
@@ -248,13 +250,14 @@ export class TunnelManager {
 
       session.pendingRequests.set(request.id, { resolve, reject, timeout });
 
-      session.socket.send(JSON.stringify(request), (err: Error | null | undefined) => {
-        if (err) {
-          clearTimeout(timeout);
-          session.pendingRequests.delete(request.id);
-          reject(err);
-        }
-      });
+      const body = decodeBody(request.body);
+      try {
+        sendTunnelWsMessage(session.socket, request, body);
+      } catch (err) {
+        clearTimeout(timeout);
+        session.pendingRequests.delete(request.id);
+        reject(err instanceof Error ? err : new Error('Failed to send request'));
+      }
     });
   }
 

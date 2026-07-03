@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { BlogMarkdown } from '@/components/blog-markdown';
+import { ComingSoonBadge } from '@/components/coming-soon-badge';
 import { SiteHeader } from '@/components/site-header';
 import { formatPostDate, getAllPosts, getPostBySlug, getSeriesPosts } from '@/lib/blog';
 import { siteUrl } from '@/lib/site';
@@ -86,11 +87,15 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               style={{
                 color: 'var(--muted)',
                 fontSize: '0.8125rem',
-                display: 'block',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: '0.5rem',
                 marginBottom: '0.75rem',
               }}
             >
-              {formatPostDate(post.date)}
+              <span>{formatPostDate(post.date)}</span>
+              {post.comingSoon ? <ComingSoonBadge size="md" /> : null}
             </time>
             <h1
               style={{

@@ -9,6 +9,7 @@ export interface BlogPostMeta {
   description: string;
   series?: string;
   seriesOrder?: number;
+  comingSoon: boolean;
 }
 
 export interface BlogPost extends BlogPostMeta {
@@ -48,6 +49,16 @@ function parseFrontmatter(raw: string): { meta: Record<string, string>; content:
   return { meta, content };
 }
 
+export function isComingSoonPost(meta: Record<string, string>, content: string): boolean {
+  const status = meta.status?.toLowerCase();
+  if (status === 'coming_soon' || status === 'coming-soon' || status === 'draft') {
+    return true;
+  }
+
+  const preview = content.slice(0, 800).toLowerCase();
+  return preview.includes('coming soon');
+}
+
 function fileToPost(filename: string): BlogPost {
   const slug = filename.replace(/\.md$/, '');
   const raw = readFileSync(join(CONTENT_DIR, filename), 'utf8');
@@ -61,6 +72,7 @@ function fileToPost(filename: string): BlogPost {
     description: meta.description ?? '',
     series: meta.series || undefined,
     seriesOrder: meta.series_order ? Number.parseInt(meta.series_order, 10) : undefined,
+    comingSoon: isComingSoonPost(meta, content),
     content,
   };
 }
@@ -79,6 +91,7 @@ export function getAllPosts(): BlogPostMeta[] {
         description: post.description,
         series: post.series,
         seriesOrder: post.seriesOrder,
+        comingSoon: post.comingSoon,
       };
     })
     .sort((a, b) => b.date.localeCompare(a.date));

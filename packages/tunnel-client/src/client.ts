@@ -2,10 +2,12 @@ import { WebSocket } from 'ws';
 import {
   decodeBody,
   encodeBody,
-  parseTunnelMessage,
+  getMessageBody,
+  sendTunnelWsMessage,
+  TunnelMessageAssembler,
+  type TunnelMessageWithBody,
   TUNNEL_WS_PATH,
   type RegisteredMessage,
-  type TunnelMessage,
   type TunnelWebSocketCloseMessage,
   type TunnelWebSocketOpenMessage,
 } from '@shiplocal/shared';
@@ -55,13 +57,6 @@ function formatLocalProxyError(err: unknown, localPort: number): string {
   }
 
   return err instanceof Error ? err.message : 'Bad gateway';
-}
-
-function rawDataToString(raw: WebSocket.RawData): string {
-  if (typeof raw === 'string') return raw;
-  if (Buffer.isBuffer(raw)) return raw.toString('utf8');
-  if (Array.isArray(raw)) return Buffer.concat(raw).toString('utf8');
-  return Buffer.from(raw).toString('utf8');
 }
 
 function rawDataToBuffer(raw: WebSocket.RawData): Buffer {
@@ -130,6 +125,7 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
   let hasRegistered = false;
   const localWebSockets = new Map<string, WebSocket>();
   const pendingLocalWebSocketMessages = new Map<string, Buffer[]>();
+  const messageAssembler = new TunnelMessageAssembler();
 
   const clearReconnect = () => {
     if (reconnectTimer) {
@@ -145,9 +141,9 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
     });
   };
 
-  const sendControlMessage = (message: unknown) => {
+  const sendControlMessage = (message: Parameters<typeof sendTunnelWsMessage>[1], body?: Buffer) => {
     if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(message));
+      sendTunnelWsMessage(ws, message, body);
     }
   };
 
@@ -190,11 +186,13 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
     });
 
     localSocket.on('message', (data) => {
-      sendControlMessage({
-        type: 'ws-message',
-        id: message.id,
-        body: encodeBody(rawDataToBuffer(data)),
-      });
+      sendControlMessage(
+        {
+          type: 'ws-message',
+          id: message.id,
+        },
+        rawDataToBuffer(data),
+      );
     });
 
     localSocket.on('close', (code, reason) => {
@@ -234,15 +232,7 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
     }, delay);
   };
 
-  const handleMessage = async (raw: WebSocket.RawData) => {
-    let message: TunnelMessage;
-
-    try {
-      message = parseTunnelMessage(rawDataToString(raw));
-    } catch {
-      return;
-    }
-
+  const handleMessage = async (message: TunnelMessageWithBody) => {
     if (message.type === 'registered') {
       publicUrl = message.publicUrl;
       registeredTunnelId = message.tunnelId;
@@ -285,18 +275,24 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
 
     if (message.type === 'request') {
       try {
-        const response = await forwardToLocal(options.localPort, message);
-        sendControlMessage(response);
+        const requestBody = getMessageBody(message);
+        const response = await forwardToLocal(options.localPort, {
+          ...message,
+          body: requestBody.length > 0 ? encodeBody(requestBody) : undefined,
+          bodyEncoding: undefined,
+        });
+        sendControlMessage(response, decodeBody(response.body));
       } catch (err) {
         const messageText = formatLocalProxyError(err, options.localPort);
-        const errorResponse = {
-          type: 'response' as const,
-          id: message.id,
-          status: 502,
-          headers: { 'content-type': 'text/plain; charset=utf-8' },
-          body: Buffer.from(messageText).toString('base64'),
-        };
-        sendControlMessage(errorResponse);
+        sendControlMessage(
+          {
+            type: 'response',
+            id: message.id,
+            status: 502,
+            headers: { 'content-type': 'text/plain; charset=utf-8' },
+          },
+          Buffer.from(messageText),
+        );
       }
       return;
     }
@@ -308,7 +304,7 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
 
     if (message.type === 'ws-message') {
       const localSocket = localWebSockets.get(message.id);
-      const body = decodeBody(message.body);
+      const body = getMessageBody(message);
       if (localSocket?.readyState === WebSocket.OPEN) {
         localSocket.send(body);
       } else if (localSocket?.readyState === WebSocket.CONNECTING) {
@@ -354,8 +350,15 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
       );
     });
 
-    socket.on('message', (data) => {
-      void handleMessage(data);
+    socket.on('message', (data, isBinary) => {
+      let message: TunnelMessageWithBody | null;
+      try {
+        message = messageAssembler.feed(data, isBinary);
+      } catch {
+        return;
+      }
+      if (!message) return;
+      void handleMessage(message);
     });
 
     socket.on('close', () => {
@@ -397,6 +400,7 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
       intentionalClose = true;
       clearReconnect();
       closeLocalWebSockets();
+      messageAssembler.reset();
 
       if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
         ws.close();

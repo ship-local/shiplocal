@@ -29,7 +29,7 @@ No `export` needed — the CLI defaults to **https://shiplocal.cloud** and saves
 
 ### 2. Start your local app
 
-Run your project locally on a port — for example **3000**:
+Run your project locally on whatever port it uses (3000, 5173, 8080, etc.):
 
 ```bash
 npm run dev
@@ -37,8 +37,12 @@ npm run dev
 
 ### 3. Open a tunnel
 
+Pass your app's port as the argument:
+
 ```bash
 shiplocal 3000
+shiplocal 5173
+shiplocal 8080
 ```
 
 You'll get output like:
@@ -60,12 +64,39 @@ Clients open the public URL, click **💬**, pick an element, and leave feedback
 
 ## Commands
 
-| Command                            | Description                       |
-| ---------------------------------- | --------------------------------- |
-| `shiplocal login`                  | Authenticate with ShipLocal Cloud |
-| `shiplocal logout`                 | Remove saved credentials          |
-| `shiplocal 3000`                   | Tunnel local port 3000            |
-| `shiplocal 3000 --password secret` | Password-protect the preview URL  |
+| Command | Description |
+| --- | --- |
+| `shiplocal login` | Authenticate with ShipLocal Cloud |
+| `shiplocal logout` | Remove saved credentials |
+| `shiplocal <port>` | Tunnel your local app (e.g. `shiplocal 5173`) |
+| `shiplocal doctor [port]` | Diagnose connectivity and tunnel performance |
+| `shiplocal benchmark [port]` | Alias for `doctor` |
+
+### Tunnel options
+
+```bash
+# Password-protect the preview URL
+shiplocal 3000 --password secret
+
+# Multi-service project (frontend + API)
+shiplocal 3000 --project my-app --name web
+shiplocal 4000 --project my-app --name api
+
+# Suggest or apply .env URL rewrites for tunnel URLs
+shiplocal 3000 --project my-app --rewrite-env
+```
+
+### Doctor / benchmark
+
+Check a specific port with the positional argument or `--port`:
+
+```bash
+shiplocal doctor 5173
+shiplocal doctor --port 8080
+shiplocal benchmark 3001 --json
+```
+
+If you omit the port, doctor defaults to **3000**.
 
 ## Environment variables (optional)
 
@@ -100,9 +131,7 @@ See the [self-hosting guide](https://github.com/ship-local/shiplocal/blob/main/d
 Run diagnostics and paste the output when reporting tunnel issues:
 
 ```bash
-shiplocal doctor
-# or
-shiplocal benchmark --port 3000
+shiplocal doctor 5173
 ```
 
 This checks API health, auth, WebSocket connectivity, and (when your local app is running) compares local vs tunnel HTML/JS transfer times and HMR WebSocket health.
