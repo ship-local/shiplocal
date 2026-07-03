@@ -1,6 +1,6 @@
 {
   "name": "shiplocal",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Share localhost with clients in seconds",
   "type": "module",
   "license": "MIT",
@@ -36,6 +36,7 @@
     "dev": "tsc -p tsconfig.json --watch",
     "lint": "eslint src/",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test src/doctor-helpers.test.ts",
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
@@ -46,7 +47,9 @@
     "@shiplocal/shared": "workspace:*",
     "@shiplocal/tunnel-client": "workspace:*",
     "@types/node": "^22.15.30",
+    "@types/ws": "^8.18.1",
     "esbuild": "^0.25.0",
+    "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   },
   "engines": {

@@ -422,10 +422,15 @@ export async function proxyTunnelRequest(
       response.status < 300
     ) {
       const { injectFeedbackOverlay } = await import('../routes/comments.js');
+      const documentOrigin = `${isSecure ? 'https' : 'http'}://${previewHost}`;
       const html = injectFeedbackOverlay(
         responseBody.toString('utf8'),
         session.dbTunnelId,
         API_PUBLIC_URL,
+        {
+          responseHeaders,
+          documentOrigin,
+        },
       );
       responseBody = Buffer.from(html, 'utf8');
       reply.header('content-type', 'text/html; charset=utf-8');

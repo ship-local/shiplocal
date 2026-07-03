@@ -4,85 +4,95 @@
 
 This is the public roadmap for [ShipLocal](https://github.com/ship-local/shiplocal) — an open-source local development collaboration platform. For architecture and internal planning details, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
-**Current focus:** Phase 4 exit (beta users) → Phase 5 (validation and public building).
+**Current focus:** v0.2 — tunnel correctness for real dev apps, then beta adoption.
+
+**Prioritization principle:** The biggest unknown is not “can the protocol be faster?” — it is whether developers adopt this workflow. Performance work follows measurement and real user feedback.
 
 ---
 
-## v0.1 — Developer Preview _(current)_
+## v0.1 — Developer Preview
 
 The core loop: share localhost, collect visual client feedback.
 
-| Feature                                                  | Status                                       |
-| -------------------------------------------------------- | -------------------------------------------- |
-| CLI (`shiplocal 3000`)                                   | ✅ Shipped                                   |
-| WebSocket tunnel + HTTP reverse proxy                    | ✅ Shipped                                   |
-| Public preview URLs (`*.shiplocal.app`)                  | ✅ Shipped                                   |
-| Dashboard — auth, projects, tunnel management            | ✅ Shipped                                   |
-| Client feedback overlay (click-to-comment + screenshots) | ✅ Shipped                                   |
-| Password-protected previews                              | ✅ Shipped                                   |
-| npm publish (`shiplocal` on npm)                         | ✅ Shipped                                   |
-| Production deploy (Hetzner Cloud)                        | ✅ Shipped                                   |
-| Beta users (5–10 agencies/freelancers)                   | 🔄 In progress                               |
-| Real-time comment push (WebSocket)                       | ⬜ Optional — dashboard polls every 5s today |
+| Feature                                                  | Status             |
+| -------------------------------------------------------- | ------------------ |
+| CLI (`shiplocal 3000`)                                   | ✅ Shipped         |
+| WebSocket tunnel + HTTP reverse proxy                    | ✅ Shipped         |
+| Public preview URLs (`*.shiplocal.app`)                  | ✅ Shipped         |
+| Dashboard — auth, projects, tunnel management            | ✅ Shipped         |
+| Client feedback overlay (click-to-comment + screenshots) | ✅ Shipped         |
+| Password-protected previews                              | ✅ Shipped         |
+| npm publish (`shiplocal` on npm)                         | ✅ Shipped (0.1.6) |
+| Production deploy (Hetzner Cloud)                        | ✅ Shipped         |
 
 ---
 
-## v0.2 — Full-stack apps
+## v0.2 — Tunnel correctness + adoption _(current)_
 
-Unblock frontend + backend demos without the localhost trap.
+Make real dev apps (Next.js, Vite, etc.) work reliably through the tunnel. Gather beta users before protocol changes.
 
-| Feature                                                  | Status     |
-| -------------------------------------------------------- | ---------- |
-| Multiple tunnel targets per project                      | ✅ Shipped |
-| Path-based routing (`/api/*` → backend, rest → frontend) | ⬜ Planned |
-| WebSocket upgrade for user apps (Socket.io, etc.)        | ⬜ Planned |
-| CORS + cookie rewrite for preview domains                | ✅ Shipped |
-| CLI env rewrite helper (`--rewrite-env`)                 | ✅ Shipped |
-| Webhook use-case docs (Stripe, Paystack, GitHub)         | ⬜ Planned |
-| Feedback reply threads                                   | ⬜ Planned |
-
----
-
-## v0.3 — Team workflows
-
-Agency collaboration features.
-
-| Feature                                       | Status     |
-| --------------------------------------------- | ---------- |
-| Teams and roles                               | ⬜ Planned |
-| Persistent preview URLs                       | ⬜ Planned |
-| Access control                                | ⬜ Planned |
-| Approval workflow (Draft → Review → Approved) | ⬜ Planned |
-| Client portal                                 | ⬜ Planned |
+| Feature                                              | Status         |
+| ---------------------------------------------------- | -------------- |
+| Skip feedback overlay on dev bundler HTML (HMR)      | ✅ Shipped     |
+| Fix dev reload loop (overlay dedupe + deferred init) | ✅ Shipped     |
+| WebSocket HMR relay for user apps                    | ✅ Shipped     |
+| Asset compression (brotli/gzip) on tunnel leg        | ✅ Shipped     |
+| Skip feedback overlay when CSP blocks injection      | ✅ Shipped     |
+| `shiplocal doctor` / tunnel benchmark                | ✅ Shipped     |
+| Path-based routing (`/api/*` → backend)              | ⬜ Planned     |
+| Beta users (5–10 agencies/freelancers)               | 🔄 In progress |
+| Multiple tunnel targets per project                  | ✅ Shipped     |
+| CORS + cookie rewrite for preview domains            | ✅ Shipped     |
+| CLI env rewrite helper (`--rewrite-env`)             | ✅ Shipped     |
 
 ---
 
-## v0.4 — Commercial Cloud
+## v0.3 — Protocol efficiency
 
-| Feature                         | Status     |
-| ------------------------------- | ---------- |
-| Billing (Paystack / Stripe)     | ⬜ Planned |
-| Plan limits and usage dashboard | ⬜ Planned |
-| Custom domains / white-label    | ⬜ Planned |
-| Analytics                       | ⬜ Planned |
+Optimize the **current** request/response model before considering streaming.
+
+| Feature                                          | Status     |
+| ------------------------------------------------ | ---------- |
+| Binary WebSocket frames (replace base64-in-JSON) | ⬜ Planned |
+| Benchmark suite + before/after metrics           | ⬜ Planned |
 
 ---
 
-## Long-term vision
+## v0.4 — Caching
 
-- **Zero-config simulator** — `shiplocal up` auto-detects Next.js, API, rewrites env vars
-- **AI feedback assistant** — turn client comments into actionable suggestions
-- **GitHub integration** — preview on pull requests
-- **Agency OS** — proposals, contracts, invoices, deployment handoff
+| Feature                                              | Status     |
+| ---------------------------------------------------- | ---------- |
+| ETag / `Last-Modified` / `304` per tunnel session    | ⬜ Planned |
+| Session static-asset cache (fonts, images, favicons) | ⬜ Planned |
+
+Measure again after shipping. Only proceed to v0.5 if real users still hit unacceptable latency.
+
+---
+
+## v0.5 — Streaming (conditional)
+
+| Feature                          | Status                                       |
+| -------------------------------- | -------------------------------------------- |
+| Streamed responses (protocol v2) | ⬜ Deferred — only if v0.3–v0.4 insufficient |
+
+---
+
+## v0.6+ — Team workflows & Cloud
+
+| Area             | Examples                                                         |
+| ---------------- | ---------------------------------------------------------------- |
+| Team workflows   | Teams, roles, persistent URLs, approval workflow, client portal  |
+| Commercial Cloud | Billing, plan limits, custom domains, analytics                  |
+| Long-term vision | Zero-config simulator, AI feedback assistant, GitHub PR previews |
 
 ---
 
 ## How we prioritize
 
-1. **Beta feedback first** — fix what breaks for real client sessions before adding features
-2. **Full-stack support next** — the most common gap after single-page demos
-3. **Team workflows** — monetization hook for agencies
-4. **Platform expansion** — only after the core loop is proven at scale
+1. **Correctness for real apps** — overlay, HMR, CSP (v0.2)
+2. **Beta adoption** — prove the workflow matters before optimizing protocol
+3. **Measured performance** — binary frames (v0.3), then caching (v0.4)
+4. **Streaming last** — only if data from real users demands it (v0.5)
 
 ---
 
@@ -92,4 +102,4 @@ Want to help? Check [open issues](https://github.com/ship-local/shiplocal/issues
 
 ---
 
-_Last updated: June 2026_
+_Last updated: July 2026_

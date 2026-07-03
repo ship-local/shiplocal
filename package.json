@@ -17,11 +17,13 @@
     "docker:down": "docker compose -f docker/docker-compose.yml down",
     "tunnel": "node packages/cli/dist/index.js",
     "publish:cli": "pnpm --filter @shiplocal/shared build && pnpm --filter @shiplocal/tunnel-client build && pnpm --filter shiplocal build && pnpm --filter shiplocal publish --access public --no-git-checks",
-    "postinstall": "pnpm db:generate"
+    "postinstall": "pnpm db:generate",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
     "eslint": "^9.28.0",
+    "husky": "^9.1.7",
     "prettier": "^3.5.3",
     "turbo": "^2.5.4",
     "typescript": "^5.8.3",

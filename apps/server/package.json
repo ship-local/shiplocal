@@ -9,7 +9,7 @@
     "start": "node dist/index.js",
     "lint": "eslint src/",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test src/tunnel/response-rewrite.test.ts",
+    "test": "tsx --test src/tunnel/response-rewrite.test.ts src/tunnel/feedback-injection.test.ts src/tunnel/csp-script-check.test.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",

@@ -13,11 +13,39 @@ import {
   updateTunnelConfig,
 } from './config.js';
 import { postJson } from './api.js';
+import { printDoctorResult, runDoctor } from './doctor.js';
 import { isLocalPortOpen } from './local-port.js';
 
 const program = new Command();
 
-program.name('shiplocal').description('Share localhost with clients in seconds').version('0.1.6');
+program.name('shiplocal').description('Share localhost with clients in seconds').version('0.1.7');
+
+async function runDoctorCommand(options: { port?: string; json?: boolean }): Promise<void> {
+  const port = options.port ? Number.parseInt(options.port, 10) : undefined;
+
+  if (options.port && (port === undefined || Number.isNaN(port) || port < 1 || port > 65535)) {
+    console.error('Error: port must be a number between 1 and 65535');
+    process.exit(1);
+  }
+
+  const result = await runDoctor({ port, json: options.json });
+  printDoctorResult(result, Boolean(options.json));
+  process.exit(result.exitCode);
+}
+
+program
+  .command('doctor')
+  .description('Diagnose ShipLocal connectivity and tunnel performance')
+  .option('-p, --port <port>', 'Local app port to benchmark', '3000')
+  .option('--json', 'Print machine-readable JSON')
+  .action(runDoctorCommand);
+
+program
+  .command('benchmark')
+  .description('Alias for `shiplocal doctor`')
+  .option('-p, --port <port>', 'Local app port to benchmark', '3000')
+  .option('--json', 'Print machine-readable JSON')
+  .action(runDoctorCommand);
 
 program
   .command('login')

@@ -97,6 +97,16 @@ See the [self-hosting guide](https://github.com/ship-local/shiplocal/blob/main/d
 
 ## Troubleshooting
 
+Run diagnostics and paste the output when reporting tunnel issues:
+
+```bash
+shiplocal doctor
+# or
+shiplocal benchmark --port 3000
+```
+
+This checks API health, auth, WebSocket connectivity, and (when your local app is running) compares local vs tunnel HTML/JS transfer times and HMR WebSocket health.
+
 **`command not found: shiplocal`**  
 Run `npm bin -g` and add that directory to your PATH.
 
