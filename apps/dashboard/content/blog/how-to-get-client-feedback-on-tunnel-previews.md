@@ -33,7 +33,7 @@ It is one of ShipLocal's main differentiators vs plain tunneling tools. But inje
 | How you run your app                  | Tunnel URL works | Feedback overlay (default) |
 | ------------------------------------- | ---------------- | -------------------------- |
 | `npm run dev` / `next dev` / Vite dev | Yes              | **No**                     |
-| `next build && next start`            | Yes              | **Yes** (if CSP allows)    |
+| `next build && next start`            | Yes              | **Yes** (if CSP allows; Next.js may need `compress: false`) |
 | Production / static build             | Yes              | **Yes** (if CSP allows)    |
 | Self-hosted Core (no Cloud)           | Yes              | No (Cloud feature)         |
 
@@ -81,6 +81,39 @@ shiplocal 4000 --project myapp --name api
 ```
 
 Run **`next start`** (or your production server) on the web port. The overlay injects into the **frontend** HTML, not the API.
+
+### Turborepo / monorepos
+
+Turbo orchestrates tasks — it is not the app server. Build and start **one app** at a time:
+
+```bash
+npx turbo run build --filter=hub
+cd apps/hub && npm run start
+shiplocal 3000
+```
+
+Tunnel the port of the app the client should see (`hub`, `web`, etc.), not the monorepo root.
+
+### Next.js: disable HTML compression for feedback
+
+`next start` enables gzip on HTML by default (`compress: true`). ShipLocal injects the overlay into **plain, uncompressed HTML**. If the response has a `content-encoding` header, we skip injection — the tunnel works, but there is no 💬 button and no `overlay.js` tag in page source.
+
+For client review sessions, add this to **`next.config.js`** (or `next.config.mjs`) in the app you tunnel:
+
+```js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  compress: false,
+};
+
+export default nextConfig;
+```
+
+Then rebuild and restart (`next build && next start`, or your Turbo filter). **Verify:** View Page Source on the **public** tunnel URL — you should see `data-shiplocal-overlay` before `</body>`.
+
+This only affects the local preview you tunnel for feedback; your deployed production site can keep compression enabled.
+
+We may add automatic decompress-and-inject later; until then, `compress: false` on the preview build is the reliable fix for Next.js.
 
 ---
 
@@ -130,7 +163,7 @@ Because the extension does not change your app's HTML, it should not trigger Fas
 ## Checklist before sending a client link
 
 1. **Do they need click-to-comment?** If yes, do not rely on `npm run dev` alone.
-2. **Run a review build:** `next build && next start` (or equivalent).
+2. **Run a review build:** `next build && next start` (or equivalent). **Next.js:** set `compress: false` in `next.config` if overlay is missing from page source.
 3. **Open the tunnel:** `shiplocal <port>`.
 4. **Verify overlay:** View source on the public URL for `data-shiplocal-overlay`.
 5. **Share the Public URL** from the CLI (not localhost).
@@ -145,7 +178,7 @@ If something breaks, run `shiplocal doctor <port>` and paste the output when ask
 | Goal                            | Command / approach                            |
 | ------------------------------- | --------------------------------------------- |
 | Share WIP quickly (no feedback) | `npm run dev` + `shiplocal 3000`              |
-| Client feedback (recommended)   | `next build && next start` + `shiplocal 3000` |
+| Client feedback (recommended)   | `next build && next start` + `shiplocal 3000` (Next.js: `compress: false` for overlay) |
 | Feedback on dev (risky)         | `shiplocal 3000 --feedback`                   |
 | Strict CSP app                  | Extension (future) or relax CSP for preview   |
 | Tunnel only (self-host)         | Core — no Cloud overlay                       |
