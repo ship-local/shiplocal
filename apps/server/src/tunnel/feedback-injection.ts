@@ -3,6 +3,7 @@ import { collectCspPolicies, wouldCspAllowExternalScript } from './csp-script-ch
 export interface OverlayInjectionOptions {
   responseHeaders?: Record<string, string | string[] | undefined>;
   documentOrigin?: string;
+  forceInDev?: boolean;
 }
 
 export function isDevBundlerHtml(html: string): boolean {
@@ -15,7 +16,7 @@ export function shouldInjectFeedbackOverlay(
   options?: OverlayInjectionOptions,
 ): boolean {
   if (html.includes('data-shiplocal-overlay')) return false;
-  if (isDevBundlerHtml(html)) return false;
+  if (!options?.forceInDev && isDevBundlerHtml(html)) return false;
 
   const policies = collectCspPolicies(options?.responseHeaders ?? {}, html);
   const overlayScriptUrl = `${apiUrl.replace(/\/$/, '')}/overlay.js`;

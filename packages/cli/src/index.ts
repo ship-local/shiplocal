@@ -19,7 +19,7 @@ import { resolveCommandPort } from './port.js';
 
 const program = new Command();
 
-program.name('shiplocal').description('Share localhost with clients in seconds').version('0.1.8');
+program.name('shiplocal').description('Share localhost with clients in seconds').version('0.1.9');
 
 async function runDoctorCommand(
   portArg: string | undefined,
@@ -106,11 +106,21 @@ program
   .option('--project <slug>', 'Project slug for coordinated multi-target URLs')
   .option('--name <target>', 'Target name within project (default: web)', 'web')
   .option('--rewrite-env', 'Suggest or apply .env URL rewrites for tunnel URLs')
+  .option(
+    '--feedback',
+    'Inject client feedback overlay on dev previews (may cause HMR/reload issues)',
+  )
   .description('Start a tunnel to your local server')
   .action(
     async (
       portArg: string,
-      options: { password?: string; project?: string; name: string; rewriteEnv?: boolean },
+      options: {
+        password?: string;
+        project?: string;
+        name: string;
+        rewriteEnv?: boolean;
+        feedback?: boolean;
+      },
     ) => {
       const port = Number.parseInt(portArg, 10);
 
@@ -146,6 +156,14 @@ program
         console.warn('');
       }
 
+      if (options.feedback) {
+        console.warn('');
+        console.warn('Warning: --feedback enables the overlay on dev previews.');
+        console.warn('This may cause reload loops or flaky HMR on Next.js/Vite.');
+        console.warn('For client review, prefer: next build && next start');
+        console.warn('');
+      }
+
       let printed = false;
 
       const client = createTunnelClient({
@@ -156,6 +174,7 @@ program
         projectSlug,
         targetName: projectSlug ? targetName : undefined,
         tunnelId: savedTunnelId,
+        feedbackOverlay: options.feedback,
         onRegistered: (info) => {
           if (info.projectSlug && info.targetName) {
             void updateTunnelConfig(

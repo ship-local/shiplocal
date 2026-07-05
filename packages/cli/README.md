@@ -2,7 +2,7 @@
 
 > From localhost to client-ready.
 
-Share your local dev server with clients via a public URL. Clients can leave visual feedback on the live preview.
+Share your local dev server with clients via a public URL. On **ShipLocal Cloud**, clients can leave visual feedback on review-ready previews (see [when the overlay appears](https://shiplocal.cloud/blog/how-to-get-client-feedback-on-tunnel-previews)).
 
 **Dashboard:** https://app.shiplocal.cloud  
 **Website:** https://shiplocal.cloud
@@ -58,19 +58,29 @@ Share this with your client.
 
 Share the **Public** URL with your client. Keep this terminal open while they view the preview.
 
-### 4. Client feedback
+### 4. Client feedback (when enabled)
 
-Clients open the public URL, click **💬**, pick an element, and leave feedback. You see comments and screenshots on your [dashboard](https://app.shiplocal.cloud/dashboard).
+The 💬 overlay is **not shown by default** on `npm run dev` previews. For client feedback, use a production-like build:
+
+```bash
+next build && next start
+shiplocal 3000
+```
+
+When the overlay is active, clients click **💬**, pick an element, and leave feedback on your [dashboard](https://app.shiplocal.cloud/dashboard).
+
+**Opt-in on dev:** `shiplocal 3000 --feedback` (may cause HMR/reload issues).  
+**Guide:** [How to get client feedback on tunnel previews](https://shiplocal.cloud/blog/how-to-get-client-feedback-on-tunnel-previews)
 
 ## Commands
 
-| Command | Description |
-| --- | --- |
-| `shiplocal login` | Authenticate with ShipLocal Cloud |
-| `shiplocal logout` | Remove saved credentials |
-| `shiplocal <port>` | Tunnel your local app (e.g. `shiplocal 5173`) |
-| `shiplocal doctor [port]` | Diagnose connectivity and tunnel performance |
-| `shiplocal benchmark [port]` | Alias for `doctor` |
+| Command                      | Description                                   |
+| ---------------------------- | --------------------------------------------- |
+| `shiplocal login`            | Authenticate with ShipLocal Cloud             |
+| `shiplocal logout`           | Remove saved credentials                      |
+| `shiplocal <port>`           | Tunnel your local app (e.g. `shiplocal 5173`) |
+| `shiplocal doctor [port]`    | Diagnose connectivity and tunnel performance  |
+| `shiplocal benchmark [port]` | Alias for `doctor`                            |
 
 ### Tunnel options
 
@@ -84,6 +94,9 @@ shiplocal 4000 --project my-app --name api
 
 # Suggest or apply .env URL rewrites for tunnel URLs
 shiplocal 3000 --project my-app --rewrite-env
+
+# Opt-in feedback overlay on dev (may cause HMR/reload issues)
+shiplocal 3000 --feedback
 ```
 
 ### Doctor / benchmark

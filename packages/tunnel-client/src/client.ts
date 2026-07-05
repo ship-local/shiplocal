@@ -22,6 +22,7 @@ export interface TunnelClientOptions {
   projectId?: string;
   targetName?: string;
   tunnelId?: string;
+  feedbackOverlay?: boolean;
   onRegistered?: (info: RegisteredMessage) => void;
   onDisconnect?: () => void;
   onTerminated?: (message: string) => void;
@@ -141,7 +142,10 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
     });
   };
 
-  const sendControlMessage = (message: Parameters<typeof sendTunnelWsMessage>[1], body?: Buffer) => {
+  const sendControlMessage = (
+    message: Parameters<typeof sendTunnelWsMessage>[1],
+    body?: Buffer,
+  ) => {
     if (ws?.readyState === WebSocket.OPEN) {
       sendTunnelWsMessage(ws, message, body);
     }
@@ -346,6 +350,7 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
           ...(options.projectId ? { projectId: options.projectId } : {}),
           ...(options.targetName ? { targetName: options.targetName } : {}),
           ...(registeredTunnelId ? { tunnelId: registeredTunnelId } : {}),
+          ...(options.feedbackOverlay ? { feedbackOverlay: true } : {}),
         }),
       );
     });

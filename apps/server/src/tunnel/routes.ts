@@ -49,7 +49,10 @@ interface BrowserWebSocketChannel {
 }
 
 const browserWebSockets = new Map<string, BrowserWebSocketChannel>();
-type TunnelWebSocketDataMessage = Extract<TunnelMessageWithBody, { type: 'ws-message' | 'ws-close' }>;
+type TunnelWebSocketDataMessage = Extract<
+  TunnelMessageWithBody,
+  { type: 'ws-message' | 'ws-close' }
+>;
 
 function rawDataToBuffer(raw: WebSocket.RawData): Buffer {
   if (typeof raw === 'string') return Buffer.from(raw, 'utf8');
@@ -220,6 +223,7 @@ export function registerTunnelWebSocket(app: FastifyInstance): void {
               publicUrl: result.publicUrl,
               expiresAt: result.expiresAt,
               passwordHash,
+              forceFeedbackOverlay: message.feedbackOverlay === true,
             });
 
             socket.send(
@@ -431,6 +435,7 @@ export async function proxyTunnelRequest(
         {
           responseHeaders,
           documentOrigin,
+          forceInDev: session.forceFeedbackOverlay,
         },
       );
       responseBody = Buffer.from(html, 'utf8');

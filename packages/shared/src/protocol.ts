@@ -26,6 +26,7 @@ export const registerMessageSchema = z.object({
   targetName: z.string().optional(),
   tunnelId: z.string().optional(),
   password: z.string().min(4).max(128).optional(),
+  feedbackOverlay: z.boolean().optional(),
 });
 
 export const registeredMessageSchema = z.object({

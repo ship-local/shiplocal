@@ -24,6 +24,25 @@ describe('feedback overlay injection', () => {
     assert.equal(injectFeedbackOverlay(html, 't1', API_URL), html);
   });
 
+  it('injects on dev bundler HTML when forceInDev is true', () => {
+    const html = '<html><body><script src="/_next/webpack-hmr"></script></body></html>';
+    assert.equal(shouldInjectFeedbackOverlay(html, API_URL, { forceInDev: true }), true);
+    const result = injectFeedbackOverlay(html, 'tunnel-1', API_URL, { forceInDev: true });
+    assert.match(result, /data-shiplocal-overlay/);
+  });
+
+  it('still skips dev HTML when forceInDev but CSP blocks overlay', () => {
+    const html = '<html><body><script src="/_next/webpack-hmr"></script></body></html>';
+    assert.equal(
+      shouldInjectFeedbackOverlay(html, API_URL, {
+        forceInDev: true,
+        responseHeaders: { 'content-security-policy': "script-src 'self'" },
+        documentOrigin: 'https://preview.example.com',
+      }),
+      false,
+    );
+  });
+
   it('skips duplicate injection', () => {
     const html =
       '<html><body data-shiplocal-overlay><script data-shiplocal-overlay></script></body></html>';

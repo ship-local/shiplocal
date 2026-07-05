@@ -32,6 +32,7 @@ export interface TunnelSession {
   expiresAt: Date;
   lastPongAt: number;
   passwordHash: string | null;
+  forceFeedbackOverlay: boolean;
   pendingRequests: Map<string, PendingRequest>;
 }
 
@@ -45,6 +46,7 @@ export interface CreateSessionInput {
   publicUrl: string;
   expiresAt: Date;
   passwordHash?: string | null;
+  forceFeedbackOverlay?: boolean;
 }
 
 export interface TunnelManagerOptions {
@@ -110,6 +112,7 @@ export class TunnelManager {
       expiresAt: input.expiresAt,
       lastPongAt: Date.now(),
       passwordHash: input.passwordHash ?? null,
+      forceFeedbackOverlay: input.forceFeedbackOverlay ?? false,
       pendingRequests: new Map(),
     };
 

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { HealthStatus } from '@/components/health-status';
 import { HomeStructuredData } from '@/components/home-structured-data';
 import { SiteHeader } from '@/components/site-header';
-import { appUrl, SITE_URL } from '@/lib/site';
+import { appUrl, siteUrl, SITE_URL } from '@/lib/site';
 
 const META_DESCRIPTION =
   'ShipLocal is an open-source localhost tunneling platform that lets developers securely share local applications over HTTPS in seconds. Create public preview URLs, self-host the tunnel server, and collaborate with clients before deployment.';
@@ -34,7 +34,7 @@ const steps = [
   },
   {
     title: '3. Share and collaborate',
-    body: 'Send the link to clients or teammates. On ShipLocal Cloud, they can leave visual feedback pinned to elements on the live page.',
+    body: 'Send the public HTTPS link. On Cloud, clients can leave visual feedback on review-ready previews — see the guide below.',
   },
 ];
 
@@ -135,6 +135,29 @@ export default function HomePage() {
               </article>
             ))}
           </div>
+        </section>
+
+        <section style={{ ...sectionStyle, marginTop: '2rem' }}>
+          <h2 style={sectionTitleStyle}>Client feedback on previews</h2>
+          <p style={{ color: 'var(--muted)', fontSize: '0.9375rem', lineHeight: 1.6, margin: 0 }}>
+            Every tunnel shares your app over HTTPS. The click-to-comment{' '}
+            <strong style={{ color: 'var(--foreground)', fontWeight: 600 }}>💬 overlay</strong> is a
+            Cloud feature that appears on{' '}
+            <strong style={{ color: 'var(--foreground)', fontWeight: 600 }}>review-ready</strong>{' '}
+            previews — for example{' '}
+            <code style={{ fontSize: '0.875em' }}>next build && next start</code> — not by default
+            on <code style={{ fontSize: '0.875em' }}>npm run dev</code>. You can opt in with{' '}
+            <code style={{ fontSize: '0.875em' }}>shiplocal 3000 --feedback</code> when you accept
+            dev tradeoffs.
+          </p>
+          <p style={{ marginTop: '1rem', marginBottom: 0 }}>
+            <a
+              href={siteUrl('/blog/how-to-get-client-feedback-on-tunnel-previews')}
+              style={{ color: 'var(--accent)', fontWeight: 500, textDecoration: 'none' }}
+            >
+              How to get client feedback on tunnel previews →
+            </a>
+          </p>
         </section>
 
         <section style={{ ...sectionStyle, marginTop: '2rem' }}>
