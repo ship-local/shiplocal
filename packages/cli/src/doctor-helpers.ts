@@ -52,7 +52,9 @@ export function findHmrWebSocketPath(html: string): string | undefined {
   }
 
   if (/@vite\/client/i.test(html)) {
-    return '/@vite/client';
+    // Vite HMR WebSocket is on the server base (`/`), not `/@vite/client`
+    // (that path is the client JS module).
+    return '/';
   }
 
   return undefined;

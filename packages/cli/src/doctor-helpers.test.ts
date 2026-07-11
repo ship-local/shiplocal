@@ -27,6 +27,11 @@ describe('doctor helpers', () => {
     assert.equal(findHmrWebSocketPath(html), '/_next/webpack-hmr');
   });
 
+  it('detects Vite HMR path as server base', () => {
+    const html = '<script type="module" src="/@vite/client"></script>';
+    assert.equal(findHmrWebSocketPath(html), '/');
+  });
+
   it('formats a pasteable report', () => {
     const report = formatDoctorReport(
       'https://shiplocal.cloud',

@@ -92,9 +92,14 @@ async function probeHmrWebSocket(publicUrl: string, html: string): Promise<Docto
 
   const wsUrl = `${toWebSocketOrigin(publicUrl)}${path}`;
   const started = performance.now();
+  // Vite only accepts upgrades with vite-hmr / vite-ping. Use vite-ping so we
+  // don't need the per-process HMR token embedded in `/@vite/client`.
+  const protocols = path === '/' ? 'vite-ping' : undefined;
 
   return new Promise((resolve) => {
-    const socket = new WebSocket(wsUrl, { maxPayload: 64 * 1024 * 1024 });
+    const socket = protocols
+      ? new WebSocket(wsUrl, protocols, { maxPayload: 64 * 1024 * 1024 })
+      : new WebSocket(wsUrl, { maxPayload: 64 * 1024 * 1024 });
     const timer = setTimeout(() => {
       socket.terminate();
       resolve({

@@ -1,6 +1,6 @@
 {
   "name": "shiplocal",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Share localhost with clients in seconds",
   "type": "module",
   "license": "MIT",

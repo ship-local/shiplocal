@@ -41,7 +41,16 @@ const FEEDBACK_OVERLAY_ENABLED =
   isCloudEdition() && process.env['FEEDBACK_OVERLAY_ENABLED'] !== 'false';
 const JWT_SECRET = process.env['JWT_SECRET'] ?? 'dev-secret-change-me';
 const IS_PRODUCTION = process.env['NODE_ENV'] === 'production';
-const userWebSocketServer = new WebSocketServer({ noServer: true });
+const userWebSocketServer = new WebSocketServer({
+  noServer: true,
+  handleProtocols: (protocols) => {
+    // Vite HMR requires the negotiated subprotocol to round-trip.
+    if (protocols.has('vite-hmr')) return 'vite-hmr';
+    if (protocols.has('vite-ping')) return 'vite-ping';
+    const first = protocols.values().next().value;
+    return first ?? false;
+  },
+});
 
 interface BrowserWebSocketChannel {
   sessionId: string;
@@ -299,7 +308,8 @@ export async function proxyTunnelRequest(
   if (
     requestPath.startsWith('/api/') ||
     requestPath === '/health' ||
-    requestPath === '/overlay.js'
+    requestPath === '/overlay.js' ||
+    requestPath === '/html2canvas.js'
   ) {
     reply.callNotFound();
     return;

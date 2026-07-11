@@ -67,7 +67,7 @@ next build && next start
 shiplocal 3000
 ```
 
-When the overlay is active, clients click **💬**, pick an element, and leave feedback on your [dashboard](https://app.shiplocal.cloud/dashboard). **Next.js:** you may need `compress: false` in `next.config` — see the [guide](https://shiplocal.cloud/blog/how-to-get-client-feedback-on-tunnel-previews#nextjs-disable-html-compression-for-feedback).
+When the overlay is active, clients click **💬**, pick an element, and leave feedback on your [dashboard](https://app.shiplocal.cloud/dashboard). **Next.js:** you may need `compress: false` in `next.config` — see the [guide](https://shiplocal.cloud/blog/how-to-get-client-feedback-on-tunnel-previews).
 
 **Opt-in on dev:** `shiplocal 3000 --feedback` (may cause HMR/reload issues).  
 **Guide:** [How to get client feedback on tunnel previews](https://shiplocal.cloud/blog/how-to-get-client-feedback-on-tunnel-previews)

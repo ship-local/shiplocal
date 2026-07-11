@@ -19,7 +19,7 @@ import { resolveCommandPort } from './port.js';
 
 const program = new Command();
 
-program.name('shiplocal').description('Share localhost with clients in seconds').version('0.1.9');
+program.name('shiplocal').description('Share localhost with clients in seconds').version('0.1.10');
 
 async function runDoctorCommand(
   portArg: string | undefined,

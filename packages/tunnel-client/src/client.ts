@@ -12,6 +12,7 @@ import {
   type TunnelWebSocketOpenMessage,
 } from '@shiplocal/shared';
 import { forwardToLocal } from './local-proxy.js';
+import { extractWebSocketProtocols, sanitizeWebSocketHeaders } from './websocket-headers.js';
 
 export interface TunnelClientOptions {
   serverUrl: string;
@@ -65,37 +66,6 @@ function rawDataToBuffer(raw: WebSocket.RawData): Buffer {
   if (Buffer.isBuffer(raw)) return raw;
   if (Array.isArray(raw)) return Buffer.concat(raw);
   return Buffer.from(raw);
-}
-
-function sanitizeWebSocketHeaders(
-  headers: Record<string, string | string[]>,
-  localPort: number,
-): Record<string, string | string[]> {
-  const result: Record<string, string | string[]> = {};
-  const skip = new Set([
-    'connection',
-    'host',
-    'keep-alive',
-    'proxy-authenticate',
-    'proxy-authorization',
-    'sec-websocket-accept',
-    'sec-websocket-extensions',
-    'sec-websocket-key',
-    'sec-websocket-version',
-    'te',
-    'trailers',
-    'transfer-encoding',
-    'upgrade',
-  ]);
-
-  for (const [key, value] of Object.entries(headers)) {
-    const lower = key.toLowerCase();
-    if (skip.has(lower)) continue;
-    result[key] = lower === 'origin' ? `http://localhost:${String(localPort)}` : value;
-  }
-
-  result['host'] = `localhost:${String(localPort)}`;
-  return result;
 }
 
 function toLocalWebSocketUrl(localPort: number, message: TunnelWebSocketOpenMessage): string {
@@ -173,10 +143,17 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
   };
 
   const openLocalWebSocket = (message: TunnelWebSocketOpenMessage) => {
-    const localSocket = new WebSocket(toLocalWebSocketUrl(options.localPort, message), {
-      headers: sanitizeWebSocketHeaders(message.headers, options.localPort),
-      maxPayload: 64 * 1024 * 1024,
-    });
+    const headers = sanitizeWebSocketHeaders(message.headers, options.localPort);
+    const protocols = extractWebSocketProtocols(message.headers);
+    const localSocket = protocols
+      ? new WebSocket(toLocalWebSocketUrl(options.localPort, message), protocols, {
+          headers,
+          maxPayload: 64 * 1024 * 1024,
+        })
+      : new WebSocket(toLocalWebSocketUrl(options.localPort, message), {
+          headers,
+          maxPayload: 64 * 1024 * 1024,
+        });
 
     localWebSockets.set(message.id, localSocket);
     pendingLocalWebSocketMessages.set(message.id, []);

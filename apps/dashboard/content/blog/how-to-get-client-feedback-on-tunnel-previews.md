@@ -30,12 +30,12 @@ It is one of ShipLocal's main differentiators vs plain tunneling tools. But inje
 
 ## Default behavior: dev vs review preview
 
-| How you run your app                  | Tunnel URL works | Feedback overlay (default) |
-| ------------------------------------- | ---------------- | -------------------------- |
-| `npm run dev` / `next dev` / Vite dev | Yes              | **No**                     |
+| How you run your app                  | Tunnel URL works | Feedback overlay (default)                                  |
+| ------------------------------------- | ---------------- | ----------------------------------------------------------- |
+| `npm run dev` / `next dev` / Vite dev | Yes              | **No**                                                      |
 | `next build && next start`            | Yes              | **Yes** (if CSP allows; Next.js may need `compress: false`) |
-| Production / static build             | Yes              | **Yes** (if CSP allows)    |
-| Self-hosted Core (no Cloud)           | Yes              | No (Cloud feature)         |
+| Production / static build             | Yes              | **Yes** (if CSP allows)                                     |
+| Self-hosted Core (no Cloud)           | Yes              | No (Cloud feature)                                          |
 
 ### Why dev previews skip the overlay
 
@@ -175,13 +175,13 @@ If something breaks, run `shiplocal doctor <port>` and paste the output when ask
 
 ## Summary
 
-| Goal                            | Command / approach                            |
-| ------------------------------- | --------------------------------------------- |
-| Share WIP quickly (no feedback) | `npm run dev` + `shiplocal 3000`              |
+| Goal                            | Command / approach                                                                     |
+| ------------------------------- | -------------------------------------------------------------------------------------- |
+| Share WIP quickly (no feedback) | `npm run dev` + `shiplocal 3000`                                                       |
 | Client feedback (recommended)   | `next build && next start` + `shiplocal 3000` (Next.js: `compress: false` for overlay) |
-| Feedback on dev (risky)         | `shiplocal 3000 --feedback`                   |
-| Strict CSP app                  | Extension (future) or relax CSP for preview   |
-| Tunnel only (self-host)         | Core — no Cloud overlay                       |
+| Feedback on dev (risky)         | `shiplocal 3000 --feedback`                                                            |
+| Strict CSP app                  | Extension (future) or relax CSP for preview                                            |
+| Tunnel only (self-host)         | Core — no Cloud overlay                                                                |
 
 The tunnel is the entry point; **review-ready previews** are how client feedback shines. Plan your client session around a production-like build, and everyone gets a smoother experience.
 

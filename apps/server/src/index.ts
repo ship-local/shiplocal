@@ -54,7 +54,12 @@ await app.register(rateLimit, {
   // tunnel preview traffic must not share the API rate limit bucket.
   allowList: (request) => {
     const path = request.url.split('?')[0] ?? '/';
-    if (path.startsWith('/api/') || path === '/health' || path === '/overlay.js') {
+    if (
+      path.startsWith('/api/') ||
+      path === '/health' ||
+      path === '/overlay.js' ||
+      path === '/html2canvas.js'
+    ) {
       return true;
     }
     return (
