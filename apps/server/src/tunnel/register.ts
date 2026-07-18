@@ -144,14 +144,17 @@ async function getSiblingUrls(
     select: { id: true, name: true, port: true, subdomain: true },
   });
 
-  return tunnels.map((tunnel) => {
+  const siblings: SiblingTunnel[] = [];
+  for (const tunnel of tunnels) {
     const live = manager.getByDbTunnelId(tunnel.id);
-    return {
+    if (!live) continue;
+    siblings.push({
       name: tunnel.name,
       port: tunnel.port,
-      publicUrl: live?.publicUrl ?? manager.buildPublicUrl(tunnel.subdomain),
-    };
-  });
+      publicUrl: live.publicUrl,
+    });
+  }
+  return siblings;
 }
 
 export async function registerTunnel(
