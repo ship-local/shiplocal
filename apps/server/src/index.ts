@@ -38,6 +38,8 @@ const tunnelExpiryMs = process.env['TUNNEL_EXPIRY_HOURS']
 
 const app = Fastify({
   logger: true,
+  // Feedback screenshots are base64 data URLs; 1MB default rejects most captures.
+  bodyLimit: 10 * 1024 * 1024,
 });
 
 await app.register(cors, {

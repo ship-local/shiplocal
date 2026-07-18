@@ -9,6 +9,7 @@ import {
   MAX_BODY_BYTES,
   parseTunnelHost,
   parseTunnelPath,
+  resolveAppWebSocketBinary,
   sendTunnelWsMessage,
   TunnelMessageAssembler,
   TUNNEL_WS_PATH,
@@ -156,7 +157,8 @@ function handleTunnelWebSocketMessage(
     if (!channel || channel.sessionId !== sessionId) return;
 
     if (channel.socket.readyState === WebSocket.OPEN) {
-      channel.socket.send(getMessageBody(message));
+      const body = getMessageBody(message);
+      channel.socket.send(body, { binary: resolveAppWebSocketBinary(body, message.binary) });
     }
     return;
   }
@@ -513,7 +515,7 @@ export function registerTunnelUpgradeProxy(app: FastifyInstance, domain: string)
         }),
       );
 
-      browserSocket.on('message', (data) => {
+      browserSocket.on('message', (data, isBinary) => {
         if (session.socket.readyState !== session.socket.OPEN) {
           browserSocket.close(1011, 'Tunnel closed');
           return;
@@ -524,6 +526,7 @@ export function registerTunnelUpgradeProxy(app: FastifyInstance, domain: string)
           {
             type: 'ws-message',
             id,
+            binary: isBinary,
           },
           rawDataToBuffer(data),
         );

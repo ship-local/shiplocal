@@ -41,6 +41,7 @@ export default function DashboardPage() {
   const [comments, setComments] = useState<CommentSummary[]>([]);
   const [fetching, setFetching] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [feedbackActionId, setFeedbackActionId] = useState<string | null>(null);
   const [expandedScreenshot, setExpandedScreenshot] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -137,11 +138,61 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleDeleteFeedback(id: string) {
+    if (!token) return;
+    setFeedbackActionId(id);
+    setActionError(null);
+
+    try {
+      await apiFetch(`/api/comments/${id}`, { method: 'DELETE', token });
+      setComments((prev) => prev.filter((comment) => comment.id !== id));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to delete feedback');
+    } finally {
+      setFeedbackActionId(null);
+    }
+  }
+
+  async function handleClearAllFeedback() {
+    if (!token || comments.length === 0) return;
+    if (
+      !window.confirm(`Clear all ${String(comments.length)} feedback items? This cannot be undone.`)
+    ) {
+      return;
+    }
+
+    setFeedbackActionId('clear-all');
+    setActionError(null);
+
+    try {
+      await apiFetch('/api/comments', { method: 'DELETE', token });
+      setComments([]);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to clear feedback');
+    } finally {
+      setFeedbackActionId(null);
+    }
+  }
+
+  const feedbackBusy = feedbackActionId !== null;
+
   const feedbackSection = isCloudEdition() ? (
     <section style={cardStyle}>
       <div style={sectionHeaderStyle}>
-        <h2 style={sectionTitleStyle}>Client feedback</h2>
-        {comments.length > 0 ? <span style={badgeStyle}>{String(comments.length)}</span> : null}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <h2 style={sectionTitleStyle}>Client feedback</h2>
+          {comments.length > 0 ? <span style={badgeStyle}>{String(comments.length)}</span> : null}
+        </div>
+        {comments.length > 0 ? (
+          <button
+            type="button"
+            disabled={feedbackBusy}
+            onClick={() => void handleClearAllFeedback()}
+            style={{ ...ghostButtonStyle, color: '#ef4444', marginLeft: 'auto' }}
+          >
+            {feedbackActionId === 'clear-all' ? 'Clearing…' : 'Clear all'}
+          </button>
+        ) : null}
       </div>
       {comments.length === 0 ? (
         <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
@@ -191,6 +242,14 @@ export default function DashboardPage() {
                     {new Date(comment.createdAt).toLocaleString()}
                   </p>
                 </div>
+                <button
+                  type="button"
+                  disabled={feedbackBusy}
+                  onClick={() => void handleDeleteFeedback(comment.id)}
+                  style={{ ...ghostButtonStyle, color: '#ef4444', alignSelf: 'start' }}
+                >
+                  {feedbackActionId === comment.id ? 'Deleting…' : 'Delete'}
+                </button>
               </div>
             </li>
           ))}

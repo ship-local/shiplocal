@@ -3,6 +3,7 @@ import {
   decodeBody,
   encodeBody,
   getMessageBody,
+  resolveAppWebSocketBinary,
   sendTunnelWsMessage,
   TunnelMessageAssembler,
   type TunnelMessageWithBody,
@@ -95,7 +96,7 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
   let connectReject: ((error: Error) => void) | null = null;
   let hasRegistered = false;
   const localWebSockets = new Map<string, WebSocket>();
-  const pendingLocalWebSocketMessages = new Map<string, Buffer[]>();
+  const pendingLocalWebSocketMessages = new Map<string, Array<{ body: Buffer; binary: boolean }>>();
   const messageAssembler = new TunnelMessageAssembler();
 
   const clearReconnect = () => {
@@ -162,15 +163,16 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
       const pendingMessages = pendingLocalWebSocketMessages.get(message.id) ?? [];
       pendingLocalWebSocketMessages.delete(message.id);
       for (const pendingMessage of pendingMessages) {
-        localSocket.send(pendingMessage);
+        localSocket.send(pendingMessage.body, { binary: pendingMessage.binary });
       }
     });
 
-    localSocket.on('message', (data) => {
+    localSocket.on('message', (data, isBinary) => {
       sendControlMessage(
         {
           type: 'ws-message',
           id: message.id,
+          binary: isBinary,
         },
         rawDataToBuffer(data),
       );
@@ -286,10 +288,11 @@ export function createTunnelClient(options: TunnelClientOptions): TunnelClient {
     if (message.type === 'ws-message') {
       const localSocket = localWebSockets.get(message.id);
       const body = getMessageBody(message);
+      const binary = resolveAppWebSocketBinary(body, message.binary);
       if (localSocket?.readyState === WebSocket.OPEN) {
-        localSocket.send(body);
+        localSocket.send(body, { binary });
       } else if (localSocket?.readyState === WebSocket.CONNECTING) {
-        pendingLocalWebSocketMessages.get(message.id)?.push(body);
+        pendingLocalWebSocketMessages.get(message.id)?.push({ body, binary });
       }
       return;
     }

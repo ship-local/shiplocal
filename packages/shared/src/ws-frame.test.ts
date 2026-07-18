@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import { EventEmitter } from 'node:events';
 import {
   getMessageBody,
+  resolveAppWebSocketBinary,
   sendTunnelWsMessage,
   shouldUseBinaryBody,
   TunnelMessageAssembler,
@@ -26,12 +27,16 @@ describe('ws-frame', () => {
     const socket = new MockSocket();
     const body = Buffer.alloc(2048, 1);
 
-    sendTunnelWsMessage(socket, {
-      type: 'response',
-      id: 'req-1',
-      status: 200,
-      headers: { 'content-type': 'application/javascript' },
-    }, body);
+    sendTunnelWsMessage(
+      socket,
+      {
+        type: 'response',
+        id: 'req-1',
+        status: 200,
+        headers: { 'content-type': 'application/javascript' },
+      },
+      body,
+    );
 
     assert.equal(socket.frames.length, 2);
     assert.equal(typeof socket.frames[0], 'string');
@@ -44,12 +49,16 @@ describe('ws-frame', () => {
     const socket = new MockSocket();
     const body = Buffer.from('hello');
 
-    sendTunnelWsMessage(socket, {
-      type: 'response',
-      id: 'req-2',
-      status: 200,
-      headers: {},
-    }, body);
+    sendTunnelWsMessage(
+      socket,
+      {
+        type: 'response',
+        id: 'req-2',
+        status: 200,
+        headers: {},
+      },
+      body,
+    );
 
     assert.equal(socket.frames.length, 1);
     assert.match(String(socket.frames[0]), /"body":"aGVsbG8="/);
@@ -72,5 +81,37 @@ describe('ws-frame', () => {
     assert.equal(second?.type, 'response');
     assert.ok(second);
     assert.equal(getMessageBody(second).toString('utf8'), 'chunk-data');
+  });
+
+  it('preserves ws-message binary opcode flag through binary transport', () => {
+    const socket = new MockSocket();
+    const body = Buffer.alloc(2048, 0x7b); // starts with `{` but must stay binary
+
+    sendTunnelWsMessage(
+      socket,
+      {
+        type: 'ws-message',
+        id: 'ws-1',
+        binary: true,
+      },
+      body,
+    );
+
+    assert.equal(socket.frames.length, 2);
+    assert.match(String(socket.frames[0]), /"binary":true/);
+    assert.match(String(socket.frames[0]), /"bodyEncoding":"binary"/);
+  });
+});
+
+describe('resolveAppWebSocketBinary', () => {
+  it('honors an explicit binary flag', () => {
+    assert.equal(resolveAppWebSocketBinary(Buffer.from('{"a":1}'), true), true);
+    assert.equal(resolveAppWebSocketBinary(Buffer.from([0xff, 0x00]), false), false);
+  });
+
+  it('falls back to JSON-text heuristic for legacy peers', () => {
+    assert.equal(resolveAppWebSocketBinary(Buffer.from('{"type":"ok"}'), undefined), false);
+    assert.equal(resolveAppWebSocketBinary(Buffer.from([0x00, 0x01, 0x02]), undefined), true);
+    assert.equal(resolveAppWebSocketBinary(Buffer.alloc(0), undefined), false);
   });
 });

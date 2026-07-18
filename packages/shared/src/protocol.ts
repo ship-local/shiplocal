@@ -76,6 +76,8 @@ export const tunnelWebSocketMessageSchema = z.object({
   id: z.string(),
   body: z.string().optional(),
   bodyEncoding: z.literal('binary').optional(),
+  /** Original WebSocket frame opcode: true = binary, false = text. */
+  binary: z.boolean().optional(),
 });
 
 export const tunnelWebSocketCloseMessageSchema = z.object({

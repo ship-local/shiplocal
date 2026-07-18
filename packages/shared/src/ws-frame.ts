@@ -22,22 +22,29 @@ export type TunnelResponseWithBody = TunnelResponseMessage & {
   bodyBuffer?: Buffer;
 };
 
-type BinaryEnvelope =
-  | TunnelRequestMessage
-  | TunnelResponseMessage
-  | TunnelWebSocketMessage;
+type BinaryEnvelope = TunnelRequestMessage | TunnelResponseMessage | TunnelWebSocketMessage;
 
 function isBinaryEnvelope(message: TunnelMessage): message is BinaryEnvelope {
   return (
-    (message.type === 'request' ||
-      message.type === 'response' ||
-      message.type === 'ws-message') &&
+    (message.type === 'request' || message.type === 'response' || message.type === 'ws-message') &&
     message.bodyEncoding === 'binary'
   );
 }
 
 export function shouldUseBinaryBody(body: Buffer): boolean {
   return body.length >= MIN_BINARY_BODY_BYTES;
+}
+
+/**
+ * Decide the WebSocket opcode when forwarding an app-level frame.
+ * Prefer the explicit flag from the peer; fall back to a JSON-text heuristic
+ * for older CLI/server builds that didn't send `binary`.
+ */
+export function resolveAppWebSocketBinary(body: Buffer, binaryFlag: boolean | undefined): boolean {
+  if (binaryFlag === true) return true;
+  if (binaryFlag === false) return false;
+  if (body.length === 0) return false;
+  return !isJsonText(body);
 }
 
 export function getMessageBody(message: TunnelMessageWithBody): Buffer {
@@ -121,5 +128,6 @@ function rawDataToBuffer(raw: unknown): Buffer {
   if (Array.isArray(raw)) return Buffer.concat(raw);
   if (raw instanceof ArrayBuffer) return Buffer.from(raw);
   if (ArrayBuffer.isView(raw)) return Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength);
-  return Buffer.from(String(raw));
+  // Avoid Buffer.from(String(obj)) → "[object Blob]" / "[object Object]" corruption.
+  throw new TypeError(`Unsupported WebSocket payload type: ${Object.prototype.toString.call(raw)}`);
 }
