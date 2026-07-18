@@ -111,7 +111,7 @@ So by default we skip injection when the HTML contains dev bundler markers, e.g.
 
 That means the tunnel still works for dev, but the client won’t see the 💬 overlay until you run a review-ready preview (e.g. `next build && next start`).
 
-Deep dive on detection: [Detecting Next.js and Vite Dev HTML](/blog/detecting-next-and-vite-dev-html)
+Deep dive on detection lives in the feedback guide: we skip injection when HTML contains markers like `webpack-hmr` / `@vite/client`. See [How to get client feedback on tunnel previews](/blog/how-to-get-client-feedback-on-tunnel-previews).
 
 ---
 
@@ -158,7 +158,7 @@ So we schedule init more gently:
 
 This doesn’t fix dev reload loops by itself. It reduces jank in the “review preview” case.
 
-Deep dive: [Deferring Feedback Overlay Init](/blog/deferring-feedback-overlay-init)
+We also schedule overlay `init()` on `requestIdleCallback` (with a timeout fallback) so feedback UI competes less with hydration on review previews.
 
 ---
 
@@ -178,7 +178,7 @@ If you inject `overlay.js` into such pages, you create a different class of bug:
 
 So ShipLocal now parses CSP from response headers and meta tags and **skips injection** if the overlay URL would be rejected.
 
-Deep dive: [Content-Security-Policy and Feedback Injection](/blog/content-security-policy-and-feedback-injection)
+So ShipLocal now parses CSP from response headers and meta tags and **skips injection** if the overlay URL would be rejected. If feedback is missing on a CSP-strict site, allowlist the overlay origin or collect feedback another way — see the [feedback guide](/blog/how-to-get-client-feedback-on-tunnel-previews).
 
 ---
 

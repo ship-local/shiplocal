@@ -187,4 +187,4 @@ The tunnel is the entry point; **review-ready previews** are how client feedback
 
 ---
 
-_Related: [The feedback overlay reload loop](/blog/the-feedback-overlay-reload-loop) · [Detecting Next and Vite dev HTML](/blog/detecting-next-and-vite-dev-html) · [Dashboard](https://app.shiplocal.cloud)_
+_Related: [The feedback overlay reload loop](/blog/the-feedback-overlay-reload-loop) · [Dashboard](https://app.shiplocal.cloud)_

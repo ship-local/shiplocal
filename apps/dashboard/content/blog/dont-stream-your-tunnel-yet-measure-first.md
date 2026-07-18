@@ -157,4 +157,5 @@ Speed is a feature. Premature protocol rewrites are a product risk.
 - [Part 10 — When HTML Is Fast but JavaScript Is Slow](/blog/when-html-is-fast-but-javascript-is-slow)
 - [Part 14 — Building `shiplocal doctor`](/blog/building-shiplocal-doctor)
 - [Part 30 — Three Classes of Tunnel Bugs](/blog/three-classes-of-tunnel-bugs)
-- [Part 20 — Adoption Before Optimization](/blog/adoption-before-optimization-tunnel-roadmap)
+- [Part 14 — `shiplocal doctor`](/blog/building-shiplocal-doctor)
+- [Part 24 — Test real apps, not todo-list demos](/blog/test-real-apps-not-todo-list-demos)

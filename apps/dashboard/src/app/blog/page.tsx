@@ -38,7 +38,8 @@ export default function BlogPage() {
           Building in public
         </h1>
         <p style={{ color: 'var(--muted)', fontSize: '1.0625rem', marginBottom: '2.5rem' }}>
-          Problems, engineering ideas, and lessons from shipping ShipLocal.
+          Problems, engineering ideas, and lessons from shipping ShipLocal — written for developers
+          and agencies using the product.
         </p>
 
         <ul style={{ listStyle: 'none', display: 'grid', gap: '1.25rem' }}>

@@ -104,11 +104,9 @@ Late hydration, layout shifts from overlay UI, or reload loops all change when o
 const isInView = true;
 ```
 
-If everything appears instantly, fix the tunnel-side delay first.
+If everything appears instantly, fix the tunnel-side delay first. Treat lagging titles as a side effect of late hydration or unstable reloads — not as a broken `useInView` by default.
 
-### Read next
-
-- [Framer Motion, IntersectionObserver, and Tunnel Side Effects](/blog/framer-motion-intersection-observer-and-tunnels) (Part 15)
+Deep dive on JS/hydration: [When HTML Is Fast but JavaScript Is Slow](/blog/when-html-is-fast-but-javascript-is-slow)
 
 ---
 
