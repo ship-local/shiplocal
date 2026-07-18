@@ -130,20 +130,9 @@ export function registerCommentRoutes(app: FastifyInstance): void {
   );
 }
 
-export function injectFeedbackOverlay(html: string, tunnelId: string, apiUrl: string): string {
-  const safeTunnelId = tunnelId.replace(/"/g, '');
-  const safeApiUrl = apiUrl.replace(/"/g, '');
-  const scriptTag = `<script src="${safeApiUrl}/overlay.js" data-tunnel-id="${safeTunnelId}" data-api-url="${safeApiUrl}" defer></script>`;
-
-  if (html.includes('</body>')) {
-    return html.replace('</body>', `${scriptTag}</body>`);
-  }
-
-  return `${html}${scriptTag}`;
-}
-
-export function isHtmlResponse(contentType: string | string[] | undefined): boolean {
-  if (!contentType) return false;
-  const value = Array.isArray(contentType) ? contentType[0] : contentType;
-  return value?.includes('text/html') ?? false;
-}
+export {
+  injectFeedbackOverlay,
+  isDevBundlerHtml,
+  isHtmlResponse,
+  shouldInjectFeedbackOverlay,
+} from '../tunnel/feedback-injection.js';
