@@ -19,7 +19,12 @@ import { resolveCommandPort } from './port.js';
 
 const program = new Command();
 
-program.name('shiplocal').description('Share localhost with clients in seconds').version('0.1.10');
+program
+  .name('shiplocal')
+  .description(
+    'Share localhost with clients in seconds. On ShipLocal Cloud, share the Review URL so clients can leave feedback without a PR or deploy.',
+  )
+  .version('0.1.10');
 
 async function runDoctorCommand(
   portArg: string | undefined,
@@ -158,9 +163,15 @@ program
 
       if (options.feedback) {
         console.warn('');
-        console.warn('Warning: --feedback enables the overlay on dev previews.');
+        console.warn('Warning: --feedback injects the 💬 overlay into the raw Public URL.');
         console.warn('This may cause reload loops or flaky HMR on Next.js/Vite.');
-        console.warn('For client review, prefer: next build && next start');
+        console.warn(
+          'Prefer the Review URL for client feedback (works on any stack / dev server).',
+        );
+        console.warn(
+          'Raw-URL overlay tip: use a production-like serve (e.g. next build && next start,',
+        );
+        console.warn('vite build && vite preview, gunicorn, or a static file server).');
         console.warn('');
       }
 
@@ -191,6 +202,9 @@ program
             console.log('');
             console.log(`Local:   http://localhost:${String(port)}`);
             console.log(`Public:  ${info.publicUrl}`);
+            if (info.reviewUrl) {
+              console.log(`Review:  ${info.reviewUrl}`);
+            }
             if (info.projectSlug) {
               console.log(`Project: ${info.projectSlug} (${info.targetName ?? targetName})`);
             }
@@ -207,7 +221,24 @@ program
               console.log(`Password: ${options.password} (share with your client)`);
             }
             console.log('');
-            console.log('Share this with your client.');
+            if (info.reviewUrl) {
+              console.log('Share the Review URL for client feedback (no PR / no deploy).');
+              console.log('  Clients can Capture tab / paste a screenshot and pin the spot.');
+              console.log('Share the Public URL for a direct preview link.');
+              console.log('');
+              console.log('In-page 💬 on the Public URL needs a production-like serve, e.g.:');
+              console.log('  next build && next start   |   vite build && vite preview');
+              console.log('  gunicorn / waitress        |   python -m http.server');
+              console.log('(Or use --feedback on a hot-reload/dev server — may be flaky.)');
+              console.log('');
+              console.log(
+                'If Review preview is blank, allow embedding (or rely on tunnel rewrite):',
+              );
+              console.log('  Remove X-Frame-Options: DENY, or set CSP frame-ancestors to include');
+              console.log('  your ShipLocal dashboard origin (e.g. https://app.shiplocal.cloud).');
+            } else {
+              console.log('Share the Public URL with your client.');
+            }
             console.log('Press Ctrl+C to stop.');
             printed = true;
 

@@ -1,41 +1,54 @@
 ---
 title: How to Get Client Feedback on Tunnel Previews
-subtitle: Sharing a tunnel URL does not always show the feedback button — here is when it does and what to do instead.
+subtitle: Share the Review URL for feedback on any stack — or use the in-page overlay on production-like serves.
 date: 2026-07-05
-description: ShipLocal Cloud can inject a click-to-comment overlay on preview pages. By default it is off during npm run dev. Use next start, --feedback, or a future browser extension.
+description: ShipLocal Cloud offers a Review URL (feedback outside your app HTML) plus an optional in-page overlay. Prefer the Review URL; use next start / vite preview when you want overlay on the Public URL.
 series: ShipLocal build series
 series_order: 32
 ---
 
-If you run `shiplocal 3000` and send the public URL to a client, they can open your app from anywhere. That part always works.
+If you run `shiplocal 3000`, the CLI prints two links:
 
-What **does not** always work is the **💬 feedback button** — the click-to-comment overlay that lets clients pin notes to elements on the live page. Many developers expect it on every tunnel link. By default, it is **intentionally off** while you are running a dev server (`npm run dev`, `next dev`, Vite dev, etc.).
+- **Public URL** — direct tunnel to your app
+- **Review URL** — ShipLocal page that embeds your preview and hosts **💬 Feedback** outside your app HTML
 
-This guide explains when feedback appears, when it does not, and how to get it when you need it.
+**Prefer the Review URL for clients.** It works on Next, Vite, Python, static servers, C++/WASM demos, and even `npm run dev` — without fighting HMR, gzip, or CSP.
+
+The rest of this guide covers the optional **in-page overlay** on the Public URL (when it appears, when it does not, and how to force it).
 
 ---
 
-## What the feedback overlay does
+## Recommended: Review URL (any stack)
 
-On **ShipLocal Cloud**, the server can inject a small script into HTML responses. That script adds:
+```bash
+# Serve your app however you normally do (dev or production-like)
+shiplocal login
+shiplocal 3000
+```
+
+Send the **Review** line from the CLI (for example `https://app.shiplocal.cloud/review/happy-lion`). Clients open it, view your app, and leave feedback. No account required on their side. You see comments on the [dashboard](https://app.shiplocal.cloud/dashboard).
+
+| How you run your app                          | Tunnel works | Review URL feedback | Public URL in-page overlay (default) |
+| --------------------------------------------- | ------------ | ------------------- | ------------------------------------ |
+| `npm run dev` / `next dev` / Vite / Flask dbg | Yes          | **Yes**             | **No**                               |
+| `next build && next start` / `vite preview`   | Yes          | **Yes**             | **Yes** (if CSP + uncompressed HTML) |
+| gunicorn / waitress / static file server      | Yes          | **Yes**             | Often **Yes**                        |
+| Self-hosted Core (no Cloud)                   | Yes          | No                  | No                                   |
+
+If the iframe is blank (some apps set `X-Frame-Options` / CSP `frame-ancestors`), use **Open raw URL** on the review page — feedback from the chrome still works.
+
+---
+
+## Optional: in-page overlay on the Public URL
+
+On **ShipLocal Cloud**, the server can inject a small script into HTML responses on the **Public** URL. That script adds:
 
 - A floating 💬 button
 - Click-to-select an element
 - A comment box and screenshot
 - Posts to your [dashboard](https://app.shiplocal.cloud/dashboard)
 
-It is one of ShipLocal's main differentiators vs plain tunneling tools. But injection only happens when it is safe and useful — not on every page load.
-
----
-
-## Default behavior: dev vs review preview
-
-| How you run your app                  | Tunnel URL works | Feedback overlay (default)                                  |
-| ------------------------------------- | ---------------- | ----------------------------------------------------------- |
-| `npm run dev` / `next dev` / Vite dev | Yes              | **No**                                                      |
-| `next build && next start`            | Yes              | **Yes** (if CSP allows; Next.js may need `compress: false`) |
-| Production / static build             | Yes              | **Yes** (if CSP allows)                                     |
-| Self-hosted Core (no Cloud)           | Yes              | No (Cloud feature)                                          |
+Injection only happens when it is safe and useful — not on every page load.
 
 ### Why dev previews skip the overlay
 
@@ -45,31 +58,36 @@ Next.js and Vite dev pages include markers like `webpack-hmr` and `@vite/client`
 - **Slow or staggered UI** — overlay JS competing with hydration and Framer Motion
 - **Unstable HMR** — dev WebSocket + modified DOM
 
-So we **skip injection on dev bundler HTML** by default. Your tunnel still works; clients just will not see 💬 until you use a review-ready preview.
-
-This is a product choice: **dev tunnel = share WIP quickly; review preview = collect structured client feedback.**
+So we **skip injection on dev bundler HTML** by default. Your tunnel still works; for feedback on those sessions, use the **Review URL**.
 
 ---
 
-## Recommended: production-like preview (works today)
+## Production-like serve (for Public URL overlay)
 
-For client review sessions, run a production build locally, then tunnel it:
+If you specifically want 💬 **inside** the Public URL page:
 
 ```bash
 # Next.js example
 next build
 next start          # usually port 3000
 
+# Vite / SPA
+vite build && vite preview
+
+# Python (example)
+gunicorn myapp:app -b 127.0.0.1:8000
+
+# Static / WASM / simple HTML
+python -m http.server 8080
+
 # In another terminal
 shiplocal login
 shiplocal 3000
 ```
 
-Send the **Public** URL from the CLI. Ask the client to look for the 💬 button in the bottom-right corner.
+Send the **Public** URL. Ask the client to look for the 💬 button in the bottom-right corner.
 
 **Verify before you send the link:** open the public URL → View Page Source → search for `data-shiplocal-overlay` or `overlay.js`. If present, feedback is enabled.
-
-Other stacks follow the same pattern: build for production, serve locally, tunnel that port.
 
 ### Full-stack apps
 
@@ -143,6 +161,7 @@ Some apps send a strict `Content-Security-Policy` (e.g. `script-src 'self'` only
 
 **What to do:**
 
+- Prefer the **Review URL** (feedback UI is on ShipLocal’s origin, not injected into your HTML), or
 - Use a production preview without strict CSP on script sources, or
 - Wait for the **browser extension** (coming later) — it loads feedback UI without modifying your HTML
 
@@ -156,7 +175,7 @@ We are exploring a Chrome extension that:
 2. Injects feedback UI via a **content script** (not proxy HTML injection)
 3. Posts comments to the same API as the built-in overlay
 
-Because the extension does not change your app's HTML, it should not trigger Fast Refresh or HMR reload loops on dev pages. It is not available yet; this post will be updated when it is.
+Because the extension does not change your app's HTML, it should not trigger Fast Refresh or HMR reload loops on dev pages. Until then, use the **Review URL** for the same “outside your HTML” benefit on share links.
 
 ---
 

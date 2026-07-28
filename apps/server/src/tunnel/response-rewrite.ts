@@ -86,3 +86,48 @@ export function requestHasCredentials(requestHeaders: Record<string, string | st
   const cookie = headerValue(requestHeaders['cookie']);
   return Boolean(cookie);
 }
+
+/**
+ * Allow ShipLocal Review chrome (and similar dashboards) to embed the preview.
+ * Strips X-Frame-Options and relaxes CSP frame-ancestors so the iframe is not blank.
+ * Developers can also set this on their own servers; we do it at the tunnel edge for Cloud reviews.
+ */
+export function rewriteFramingHeaders(
+  headers: Record<string, string | string[]>,
+  embedOrigins: string[],
+): Record<string, string | string[]> {
+  const next: Record<string, string | string[]> = Object.fromEntries(
+    Object.entries(headers).filter(([key]) => key.toLowerCase() !== 'x-frame-options'),
+  );
+
+  const cspKey = Object.keys(next).find((key) => key.toLowerCase() === 'content-security-policy');
+  if (!cspKey) {
+    return next;
+  }
+
+  const raw = next[cspKey];
+  const value = Array.isArray(raw) ? raw.join(', ') : raw;
+  if (!value) return next;
+
+  const allowList = ["'self'", ...embedOrigins.map((origin) => origin.replace(/\/$/, ''))].join(
+    ' ',
+  );
+
+  const rewritten = value
+    .split(';')
+    .map((directive) => directive.trim())
+    .filter(Boolean)
+    .map((directive) => {
+      const lower = directive.toLowerCase();
+      if (lower.startsWith('frame-ancestors')) {
+        // Replace deny/none/self-only policies with an allow-list that includes Review chrome.
+        return `frame-ancestors ${allowList}`;
+      }
+      return directive;
+    })
+    .join('; ');
+
+  // If CSP had no frame-ancestors, leave it alone (default is allow embedding).
+  next[cspKey] = rewritten;
+  return next;
+}

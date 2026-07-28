@@ -34,7 +34,7 @@ const steps = [
   },
   {
     title: '3. Share and collaborate',
-    body: 'Send the public HTTPS link. On Cloud, clients can leave visual feedback on review-ready previews — see the guide below.',
+    body: 'Send the Review URL. On Cloud, clients leave feedback without a PR or deploy — any language or framework.',
   },
 ];
 
@@ -140,15 +140,26 @@ export default function HomePage() {
         <section style={{ ...sectionStyle, marginTop: '2rem' }}>
           <h2 style={sectionTitleStyle}>Client feedback on previews</h2>
           <p style={{ color: 'var(--muted)', fontSize: '0.9375rem', lineHeight: 1.6, margin: 0 }}>
-            Every tunnel shares your app over HTTPS. The click-to-comment{' '}
-            <strong style={{ color: 'var(--foreground)', fontWeight: 600 }}>💬 overlay</strong> is a
-            Cloud feature that appears on{' '}
-            <strong style={{ color: 'var(--foreground)', fontWeight: 600 }}>review-ready</strong>{' '}
-            previews — for example{' '}
-            <code style={{ fontSize: '0.875em' }}>next build && next start</code> — not by default
-            on <code style={{ fontSize: '0.875em' }}>npm run dev</code>. You can opt in with{' '}
-            <code style={{ fontSize: '0.875em' }}>shiplocal 3000 --feedback</code> when you accept
-            dev tradeoffs.
+            Every tunnel shares your app over HTTPS. On Cloud, share the{' '}
+            <strong style={{ color: 'var(--foreground)', fontWeight: 600 }}>Review URL</strong> so
+            clients leave feedback from a ShipLocal page (works on any stack — Next, Vite, Python,
+            static servers — including <code style={{ fontSize: '0.875em' }}>npm run dev</code>).
+          </p>
+          <p
+            style={{
+              color: 'var(--muted)',
+              fontSize: '0.9375rem',
+              lineHeight: 1.6,
+              margin: '1rem 0 0',
+            }}
+          >
+            Optional in-page{' '}
+            <strong style={{ color: 'var(--foreground)', fontWeight: 600 }}>💬 overlay</strong> on
+            the Public URL prefers a production-like serve — e.g.{' '}
+            <code style={{ fontSize: '0.875em' }}>next build && next start</code>,{' '}
+            <code style={{ fontSize: '0.875em' }}>vite build && vite preview</code>, or gunicorn / a
+            static file server. Opt in on hot-reload servers with{' '}
+            <code style={{ fontSize: '0.875em' }}>shiplocal 3000 --feedback</code>.
           </p>
           <p style={{ marginTop: '1rem', marginBottom: 0 }}>
             <a

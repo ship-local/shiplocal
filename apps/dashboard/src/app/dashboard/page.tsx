@@ -196,7 +196,8 @@ export default function DashboardPage() {
       </div>
       {comments.length === 0 ? (
         <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
-          No feedback yet. Share a tunnel URL with your client — they can click 💬 on the preview.
+          No feedback yet. Share the <strong>Review URL</strong> from the CLI (not only the Public
+          URL) — clients leave feedback from the ShipLocal review page.
         </p>
       ) : (
         <ul style={{ listStyle: 'none', display: 'grid', gap: '1rem' }}>

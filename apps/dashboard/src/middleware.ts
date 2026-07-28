@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { appHost, siteHost } from '@/lib/site';
 
-const APP_ROUTE_PREFIXES = ['/login', '/register', '/dashboard', '/auth'];
+const APP_ROUTE_PREFIXES = ['/login', '/register', '/dashboard', '/auth', '/review'];
 
 export function middleware(request: NextRequest) {
   const marketingHost = siteHost();

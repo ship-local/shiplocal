@@ -2,7 +2,7 @@
 
 > From localhost to client-ready.
 
-Share your local dev server with clients via a public URL. On **ShipLocal Cloud**, clients can leave visual feedback on review-ready previews (see [when the overlay appears](https://shiplocal.cloud/blog/how-to-get-client-feedback-on-tunnel-previews)).
+Share your local server with clients via a public URL. On **ShipLocal Cloud**, share the **Review URL** so clients can leave feedback without a PR, staging deploy, or installing anything.
 
 **Dashboard:** https://app.shiplocal.cloud  
 **Website:** https://shiplocal.cloud
@@ -29,10 +29,13 @@ No `export` needed — the CLI defaults to **https://shiplocal.cloud** and saves
 
 ### 2. Start your local app
 
-Run your project locally on whatever port it uses (3000, 5173, 8080, etc.):
+Run whatever serves your app locally (any language / framework):
 
 ```bash
-npm run dev
+# Examples
+npm run dev                 # Node (Next/Vite/…)
+flask run                   # Python
+python -m http.server 8000  # Static / simple servers
 ```
 
 ### 3. Open a tunnel
@@ -52,24 +55,34 @@ You'll get output like:
 
 Local:   http://localhost:3000
 Public:  https://happy-lion.shiplocal.cloud
+Review:  https://app.shiplocal.cloud/review/happy-lion
 
-Share this with your client.
+Share the Review URL for client feedback (no PR / no deploy).
+Share the Public URL for a direct preview link.
 ```
 
-Share the **Public** URL with your client. Keep this terminal open while they view the preview.
+- **Review URL** (recommended for clients) — preview + 💬 feedback chrome on ShipLocal. Works even on `npm run dev`, Flask, Django, static servers, etc.
+- **Public URL** — direct tunnel to your app (optional in-page overlay; see below).
 
-### 4. Client feedback (when enabled)
+Keep this terminal open while they view the preview.
 
-The 💬 overlay is **not shown by default** on `npm run dev` previews. For client feedback, use a production-like build:
+### 4. Client feedback (ShipLocal Cloud)
 
-```bash
-next build && next start
-shiplocal 3000
-```
+**Prefer the Review URL.** Feedback lives on ShipLocal’s page (outside your app HTML), so clients can comment without fighting HMR, gzip, or CSP.
 
-When the overlay is active, clients click **💬**, pick an element, and leave feedback on your [dashboard](https://app.shiplocal.cloud/dashboard). **Next.js:** you may need `compress: false` in `next.config` — see the [guide](https://shiplocal.cloud/blog/how-to-get-client-feedback-on-tunnel-previews).
+#### Optional: in-page 💬 overlay on the Public URL
 
-**Opt-in on dev:** `shiplocal 3000 --feedback` (may cause HMR/reload issues).  
+The injected overlay on the **Public** URL is **not** shown by default on hot-reload / debug servers (Next/Vite `dev`, Flask debug, etc.). For that legacy path, serve a **production-like** build:
+
+| Stack                         | Review-ready serve (examples)                                                                                               |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Next.js                       | `next build && next start` (often needs `compress: false` in `next.config`)                                                 |
+| Vite / SPA                    | `vite build && vite preview`                                                                                                |
+| Create React App              | `npm run build && npx serve -s build`                                                                                       |
+| Python (Flask/Django/FastAPI) | Serve without debug reloader (e.g. gunicorn / waitress / `manage.py runserver` only if you accept no overlay on debug HTML) |
+| Static HTML / C++ WASM / etc. | Any static file server (`python -m http.server`, nginx, `caddy file-server`)                                                |
+
+**Opt-in on dev:** `shiplocal 3000 --feedback` (may cause HMR/reload issues on JS bundlers).  
 **Guide:** [How to get client feedback on tunnel previews](https://shiplocal.cloud/blog/how-to-get-client-feedback-on-tunnel-previews)
 
 ## Commands
@@ -95,7 +108,7 @@ shiplocal 4000 --project my-app --name api
 # Suggest or apply .env URL rewrites for tunnel URLs
 shiplocal 3000 --project my-app --rewrite-env
 
-# Opt-in feedback overlay on dev (may cause HMR/reload issues)
+# Opt-in feedback overlay on the Public URL for dev servers
 shiplocal 3000 --feedback
 ```
 

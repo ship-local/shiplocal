@@ -24,6 +24,7 @@ import {
   applyCorsHeaders,
   buildPreflightHeaders,
   requestHasCredentials,
+  rewriteFramingHeaders,
   rewriteSetCookieHeaders,
 } from './response-rewrite.js';
 import { resolveCorsContext } from './cors-context.js';
@@ -38,6 +39,14 @@ import {
 const API_PUBLIC_URL = process.env['API_PUBLIC_URL'] ?? 'http://localhost:4000';
 const DASHBOARD_URL = process.env['DASHBOARD_URL'] ?? 'http://localhost:3001';
 const REGISTER_URL = new URL('/register', DASHBOARD_URL).toString();
+
+function dashboardEmbedOrigin(): string {
+  try {
+    return new URL(DASHBOARD_URL).origin;
+  } catch {
+    return DASHBOARD_URL.replace(/\/$/, '');
+  }
+}
 const FEEDBACK_OVERLAY_ENABLED =
   isCloudEdition() && process.env['FEEDBACK_OVERLAY_ENABLED'] !== 'false';
 const JWT_SECRET = process.env['JWT_SECRET'] ?? 'dev-secret-change-me';
@@ -237,12 +246,17 @@ export function registerTunnelWebSocket(app: FastifyInstance): void {
               forceFeedbackOverlay: message.feedbackOverlay === true,
             });
 
+            const reviewUrl = isCloudEdition()
+              ? new URL(`/review/${result.subdomain}`, DASHBOARD_URL).toString()
+              : undefined;
+
             socket.send(
               JSON.stringify({
                 type: 'registered',
                 tunnelId: result.tunnel.id,
                 subdomain: result.subdomain,
                 publicUrl: result.publicUrl,
+                ...(reviewUrl ? { reviewUrl } : {}),
                 expiresAt: result.expiresAt.toISOString(),
                 projectSlug: project.slug,
                 targetName: result.tunnel.name,
@@ -411,6 +425,7 @@ export async function proxyTunnelRequest(
       requestHasCredentials(requestHeaders),
     );
     responseHeaders = rewriteSetCookieHeaders(responseHeaders, previewHost, isSecure);
+    responseHeaders = rewriteFramingHeaders(responseHeaders, [dashboardEmbedOrigin()]);
 
     applyResponseHeaders(reply, responseHeaders);
     let responseBody = getMessageBody(response);

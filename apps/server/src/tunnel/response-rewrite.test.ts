@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   applyCorsHeaders,
   buildPreflightHeaders,
+  rewriteFramingHeaders,
   rewriteSetCookieHeaders,
 } from './response-rewrite.js';
 
@@ -51,5 +52,21 @@ describe('response rewrite', () => {
     assert.ok(Array.isArray(cookie));
     assert.match(cookie[0] ?? '', /Domain=myapp-api\.example\.com/);
     assert.match(cookie[0] ?? '', /Secure/);
+  });
+
+  it('strips X-Frame-Options and relaxes frame-ancestors for Review embed', () => {
+    const headers = rewriteFramingHeaders(
+      {
+        'X-Frame-Options': 'DENY',
+        'content-security-policy': "default-src 'self'; frame-ancestors 'none'",
+      },
+      ['https://app.shiplocal.cloud'],
+    );
+
+    assert.equal(headers['X-Frame-Options'], undefined);
+    assert.match(
+      String(headers['content-security-policy']),
+      /frame-ancestors 'self' https:\/\/app\.shiplocal\.cloud/,
+    );
   });
 });

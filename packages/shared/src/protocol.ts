@@ -34,6 +34,8 @@ export const registeredMessageSchema = z.object({
   tunnelId: z.string(),
   subdomain: z.string(),
   publicUrl: z.string().url(),
+  /** Cloud feedback share page (chrome outside the app HTML). */
+  reviewUrl: z.string().url().optional(),
   expiresAt: z.string(),
   projectSlug: z.string().optional(),
   targetName: z.string().optional(),

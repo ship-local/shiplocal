@@ -148,6 +148,9 @@ async function benchmarkThroughTunnel(
     token,
     onRegistered: (info) => {
       publicUrl = info.publicUrl;
+      if (info.reviewUrl) {
+        metrics['Review URL'] = info.reviewUrl;
+      }
     },
   });
 
@@ -226,6 +229,37 @@ async function benchmarkThroughTunnel(
     }
 
     checks.push(await probeHmrWebSocket(publicUrl, html));
+
+    const hasDevMarkers =
+      /webpack-hmr|@vite\/client|@react-refresh|__turbopack|react-refresh\.js/i.test(html);
+    const hasOverlay = html.includes('data-shiplocal-overlay');
+    if (hasOverlay) {
+      checks.push({
+        name: 'Feedback overlay',
+        status: 'ok',
+        message: 'In-page overlay script present on Public URL HTML',
+      });
+    } else if (hasDevMarkers) {
+      checks.push({
+        name: 'Feedback overlay',
+        status: 'warn',
+        message:
+          'Dev/hot-reload HTML detected — Public URL skips in-page overlay. Share the Review URL for client feedback, or serve a production-like build (next start, vite preview, gunicorn, static server).',
+      });
+    } else if (tunnelHtml.encoding) {
+      checks.push({
+        name: 'Feedback overlay',
+        status: 'warn',
+        message: `HTML is ${tunnelHtml.encoding}-encoded — Public URL skips in-page overlay. Share the Review URL, or disable origin compression for HTML.`,
+      });
+    } else {
+      checks.push({
+        name: 'Feedback overlay',
+        status: 'warn',
+        message:
+          'No in-page overlay detected on Public URL. Prefer the Review URL for client feedback (works on any stack).',
+      });
+    }
   } catch (err) {
     checks.push({
       name: 'Tunnel benchmark',
