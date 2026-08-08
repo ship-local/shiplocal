@@ -435,7 +435,9 @@ export async function proxyTunnelRequest(
       response.status >= 200 &&
       response.status < 300
     ) {
-      const { injectFeedbackOverlay } = await import('../routes/comments.js');
+      // Import from feedback-injection (not comments) so Core typecheck works without
+      // the Cloud-only comments route module.
+      const { injectFeedbackOverlay } = await import('./feedback-injection.js');
       const documentOrigin = `${isSecure ? 'https' : 'http'}://${previewHost}`;
       const html = injectFeedbackOverlay(
         responseBody.toString('utf8'),
