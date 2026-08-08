@@ -48,13 +48,25 @@ function LoginForm() {
 
   return (
     <main style={{ maxWidth: 400, margin: '4rem auto', padding: '0 1.5rem' }}>
-      <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.5rem' }}>Sign in</h1>
+      <Link
+        href="/"
+        className="site-logo"
+        style={{ display: 'inline-block', marginBottom: '1.5rem', fontSize: '1.15rem' }}
+      >
+        ShipLocal
+      </Link>
+      <h1
+        className="display"
+        style={{ fontSize: '1.85rem', fontWeight: 700, marginBottom: '0.5rem' }}
+      >
+        Sign in
+      </h1>
       <p style={{ color: 'var(--muted)', marginBottom: '2rem' }}>
         Manage your tunnels and share localhost with clients.
       </p>
 
       {resetSuccess ? (
-        <p style={{ color: '#22c55e', fontSize: '0.875rem', marginBottom: '1rem' }}>
+        <p style={{ color: 'var(--success)', fontSize: '0.875rem', marginBottom: '1rem' }}>
           Password updated. Sign in with your new password.
         </p>
       ) : null}
@@ -88,7 +100,7 @@ function LoginForm() {
           </Link>
         </p>
 
-        {error ? <p style={{ color: '#ef4444', fontSize: '0.875rem' }}>{error}</p> : null}
+        {error ? <p style={{ color: 'var(--danger)', fontSize: '0.875rem' }}>{error}</p> : null}
 
         <button type="submit" disabled={submitting} style={authButtonStyle}>
           {submitting ? 'Signing in…' : 'Sign in'}

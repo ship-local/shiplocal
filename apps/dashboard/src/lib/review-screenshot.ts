@@ -29,6 +29,43 @@ export async function readClipboardImage(): Promise<string | null> {
   return null;
 }
 
+export async function bakePinIntoScreenshot(
+  dataUrl: string,
+  pin: { x: number; y: number },
+): Promise<string> {
+  const img = await loadImage(dataUrl);
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth || img.width;
+  canvas.height = img.naturalHeight || img.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return dataUrl;
+
+  ctx.drawImage(img, 0, 0);
+  const radius = Math.max(10, Math.round(Math.min(canvas.width, canvas.height) * 0.012));
+  const px = pin.x * canvas.width;
+  const py = pin.y * canvas.height;
+
+  ctx.beginPath();
+  ctx.arc(px, py, radius, 0, Math.PI * 2);
+  ctx.fillStyle = '#ef4444';
+  ctx.fill();
+  ctx.lineWidth = Math.max(2, Math.round(radius * 0.35));
+  ctx.strokeStyle = '#ffffff';
+  ctx.stroke();
+
+  const jpeg = canvas.toDataURL('image/jpeg', 0.82);
+  return jpeg.startsWith('data:image') ? jpeg : canvas.toDataURL('image/png');
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Could not load screenshot for pin'));
+    img.src = src;
+  });
+}
+
 /**
  * Capture the current tab (or a chosen window) via the Screen Capture API.
  * Prefer this tab so the client gets the Review page + embedded preview.

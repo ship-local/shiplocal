@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CommentSummary, ProjectSummary, TunnelSummary } from '@shiplocal/shared';
+import type { AccountStats, CommentSummary, ProjectSummary, TunnelSummary } from '@shiplocal/shared';
+import { AppShell } from '@/components/app-shell';
+import { StatsStrip } from '@/components/stats-strip';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { isCloudEdition } from '@/lib/edition';
@@ -34,15 +36,17 @@ function readStoredLayout(): DashboardLayout {
 }
 
 export default function DashboardPage() {
-  const { user, token, apiToken, loading, logout } = useAuth();
+  const { user, token, apiToken, loading } = useAuth();
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [tunnels, setTunnels] = useState<TunnelSummary[]>([]);
   const [comments, setComments] = useState<CommentSummary[]>([]);
+  const [stats, setStats] = useState<AccountStats | null>(null);
   const [fetching, setFetching] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
   const [feedbackActionId, setFeedbackActionId] = useState<string | null>(null);
   const [expandedScreenshot, setExpandedScreenshot] = useState<string | null>(null);
+  const [expandedLoadingId, setExpandedLoadingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [layout, setLayout] = useState<DashboardLayout>('focus');
@@ -64,13 +68,15 @@ export default function DashboardPage() {
     setLoadError(null);
 
     try {
-      const [projectsRes, tunnelsRes] = await Promise.all([
+      const [projectsRes, tunnelsRes, statsRes] = await Promise.all([
         apiFetch<{ projects: ProjectSummary[] }>('/api/projects', { token }),
         apiFetch<{ tunnels: TunnelSummary[] }>('/api/tunnels', { token }),
+        apiFetch<AccountStats>('/api/stats', { token }),
       ]);
 
       setProjects(projectsRes.projects ?? []);
       setTunnels(tunnelsRes.tunnels ?? []);
+      setStats(statsRes);
 
       if (isCloudEdition()) {
         const commentsRes = await apiFetch<{ comments: CommentSummary[] }>('/api/comments', {
@@ -174,21 +180,73 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleOpenScreenshot(comment: CommentSummary) {
+    if (!token || !comment.hasScreenshot) return;
+    if (comment.screenshot) {
+      setExpandedScreenshot(comment.screenshot);
+      return;
+    }
+
+    setExpandedLoadingId(comment.id);
+    setActionError(null);
+    try {
+      const res = await apiFetch<{ comment: CommentSummary }>(`/api/comments/${comment.id}`, {
+        token,
+      });
+      const full = res.comment.screenshot;
+      if (!full) {
+        setActionError('Screenshot not available');
+        return;
+      }
+      setComments((prev) =>
+        prev.map((item) =>
+          item.id === comment.id ? { ...item, screenshot: full, hasScreenshot: true } : item,
+        ),
+      );
+      setExpandedScreenshot(full);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to load screenshot');
+    } finally {
+      setExpandedLoadingId(null);
+    }
+  }
+
   const feedbackBusy = feedbackActionId !== null;
 
   const feedbackSection = isCloudEdition() ? (
-    <section style={cardStyle}>
-      <div style={sectionHeaderStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <h2 style={sectionTitleStyle}>Client feedback</h2>
-          {comments.length > 0 ? <span style={badgeStyle}>{String(comments.length)}</span> : null}
-        </div>
+    <section className="dash-section">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          marginBottom: '1rem',
+        }}
+      >
+        <h2 className="dash-section-title" style={{ margin: 0 }}>
+          Client feedback
+        </h2>
+        {comments.length > 0 ? (
+          <span
+            style={{
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              background: 'var(--accent-soft)',
+              color: 'var(--accent)',
+              padding: '0.15rem 0.45rem',
+              borderRadius: 'var(--radius)',
+            }}
+          >
+            {String(comments.length)}
+          </span>
+        ) : null}
         {comments.length > 0 ? (
           <button
             type="button"
             disabled={feedbackBusy}
             onClick={() => void handleClearAllFeedback()}
-            style={{ ...ghostButtonStyle, color: '#ef4444', marginLeft: 'auto' }}
+            className="btn btn-ghost btn-danger"
+            style={{ marginLeft: 'auto' }}
           >
             {feedbackActionId === 'clear-all' ? 'Clearing…' : 'Clear all'}
           </button>
@@ -202,12 +260,12 @@ export default function DashboardPage() {
       ) : (
         <ul style={{ listStyle: 'none', display: 'grid', gap: '1rem' }}>
           {comments.map((comment) => (
-            <li key={comment.id} style={feedbackItemStyle}>
+            <li key={comment.id} className="dash-item">
               <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                {comment.screenshot ? (
+                {comment.hasScreenshot ? (
                   <button
                     type="button"
-                    onClick={() => setExpandedScreenshot(comment.screenshot)}
+                    onClick={() => void handleOpenScreenshot(comment)}
                     title="View full screenshot"
                     style={{
                       padding: 0,
@@ -217,24 +275,42 @@ export default function DashboardPage() {
                       flexShrink: 0,
                     }}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={comment.screenshot}
-                      alt="Feedback screenshot thumbnail"
-                      style={{
-                        width: 140,
-                        height: 96,
-                        objectFit: 'contain',
-                        background: 'var(--background)',
-                        borderRadius: '0.5rem',
-                        border: '1px solid var(--border)',
-                        display: 'block',
-                      }}
-                    />
+                    {comment.screenshot ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={comment.screenshot}
+                        alt="Feedback screenshot thumbnail"
+                        style={{
+                          width: 140,
+                          height: 96,
+                          objectFit: 'contain',
+                          background: 'var(--background)',
+                          borderRadius: 'var(--radius)',
+                          border: '1px solid var(--border)',
+                          display: 'block',
+                        }}
+                      />
+                    ) : (
+                      <span
+                        style={{
+                          width: 140,
+                          height: 96,
+                          display: 'grid',
+                          placeItems: 'center',
+                          background: 'var(--background)',
+                          borderRadius: 'var(--radius)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--muted)',
+                          fontSize: '0.75rem',
+                        }}
+                      >
+                        {expandedLoadingId === comment.id ? 'Loading…' : 'View'}
+                      </span>
+                    )}
                   </button>
                 ) : null}
                 <div style={{ flex: 1, minWidth: 200 }}>
-                  <p style={{ fontWeight: 500, marginBottom: '0.25rem' }}>{comment.message}</p>
+                  <p style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{comment.message}</p>
                   <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
                     {comment.projectName} · {comment.page}
                     {comment.selector ? ` · ${comment.selector}` : ''}
@@ -247,7 +323,8 @@ export default function DashboardPage() {
                   type="button"
                   disabled={feedbackBusy}
                   onClick={() => void handleDeleteFeedback(comment.id)}
-                  style={{ ...ghostButtonStyle, color: '#ef4444', alignSelf: 'start' }}
+                  className="btn btn-ghost btn-danger"
+                  style={{ alignSelf: 'start' }}
                 >
                   {feedbackActionId === comment.id ? 'Deleting…' : 'Delete'}
                 </button>
@@ -260,17 +337,16 @@ export default function DashboardPage() {
   ) : null;
 
   const tunnelsSection = (
-    <section style={cardStyle}>
-      <h2 style={{ ...sectionTitleStyle, marginBottom: '1rem' }}>Active tunnels</h2>
+    <section className="dash-section">
+      <h2 className="dash-section-title">Live tunnels</h2>
       {tunnels.length === 0 ? (
         <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
-          No tunnels yet. Run <code style={{ color: 'var(--foreground)' }}>shiplocal 3000</code>{' '}
-          after logging in via CLI.
+          No live tunnels. Run <code>shiplocal 3000</code> after logging in via CLI.
         </p>
       ) : (
         <ul style={{ listStyle: 'none', display: 'grid', gap: '1rem' }}>
           {tunnels.map((tunnel) => (
-            <li key={tunnel.id} style={listItemStyle}>
+            <li key={tunnel.id} className="dash-item">
               <div
                 style={{
                   display: 'flex',
@@ -280,17 +356,28 @@ export default function DashboardPage() {
                 }}
               >
                 <div>
-                  <p style={{ fontWeight: 500 }}>
-                    {tunnel.isLive ? '🟢' : '🔴'} {tunnel.projectName}
+                  <p style={{ fontWeight: 600 }}>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: 8,
+                        height: 8,
+                        borderRadius: 999,
+                        background: tunnel.isLive ? 'var(--success)' : 'var(--danger)',
+                        marginRight: 8,
+                      }}
+                      aria-hidden
+                    />
+                    {tunnel.projectName}
                     {tunnel.name !== 'web' ? ` · ${tunnel.name}` : ''}
-                    {tunnel.passwordProtected ? ' 🔒' : ''}
+                    {tunnel.passwordProtected ? ' · locked' : ''}
                   </p>
                   <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
                     Port {String(tunnel.port)} · {tunnel.subdomain}
                   </p>
                   <p style={{ color: 'var(--muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
                     CLI:{' '}
-                    <code style={{ color: 'var(--foreground)' }}>
+                    <code>
                       shiplocal {String(tunnel.port)} --project {tunnel.projectSlug}
                       {tunnel.name !== 'web' ? ` --name ${tunnel.name}` : ''}
                     </code>
@@ -300,7 +387,7 @@ export default function DashboardPage() {
                       href={tunnel.publicUrl}
                       target="_blank"
                       rel="noreferrer"
-                      style={{ fontSize: '0.875rem' }}
+                      style={{ fontSize: '0.875rem', fontWeight: 600 }}
                     >
                       {tunnel.publicUrl}
                     </a>
@@ -317,21 +404,21 @@ export default function DashboardPage() {
                   <button
                     disabled={actionId === tunnel.id || !tunnel.isLive}
                     onClick={() => void handleTunnelAction(tunnel.id, 'stop')}
-                    style={ghostButtonStyle}
+                    className="btn btn-ghost"
                   >
                     Stop
                   </button>
                   <button
                     disabled={actionId === tunnel.id}
                     onClick={() => void handleTunnelAction(tunnel.id, 'restart')}
-                    style={ghostButtonStyle}
+                    className="btn btn-ghost"
                   >
                     Restart
                   </button>
                   <button
                     disabled={actionId === tunnel.id}
                     onClick={() => void handleTunnelAction(tunnel.id, 'delete')}
-                    style={{ ...ghostButtonStyle, color: '#ef4444' }}
+                    className="btn btn-ghost btn-danger"
                   >
                     Delete
                   </button>
@@ -345,8 +432,8 @@ export default function DashboardPage() {
   );
 
   const projectsSection = (
-    <section style={cardStyle}>
-      <h2 style={{ ...sectionTitleStyle, marginBottom: '1rem' }}>Projects</h2>
+    <section className="dash-section">
+      <h2 className="dash-section-title">Projects</h2>
       {projects.length === 0 ? (
         <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
           No projects yet. Run the CLI to create one.
@@ -355,15 +442,27 @@ export default function DashboardPage() {
         <ul style={{ listStyle: 'none', display: 'grid', gap: '0.75rem' }}>
           {projects.map((project) => (
             <li key={project.id}>
-              <Link href={`/dashboard/projects/${project.id}`} style={projectLinkStyle}>
-                <span style={{ fontWeight: 500 }}>{project.name}</span>
-                <span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
-                  {' '}
-                  · {project.slug}
+              <Link
+                href={`/dashboard/projects/${project.id}`}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  padding: '0.75rem 0',
+                  borderTop: '1px solid var(--border)',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                }}
+              >
+                <span>
+                  <span style={{ fontWeight: 600 }}>{project.name}</span>
+                  <span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+                    {' '}
+                    · {project.slug}
+                  </span>
                 </span>
-                <span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
-                  {project.onlineCount > 0 ? '🟢' : '🔴'} {String(project.onlineCount)}/
-                  {String(project.tunnelCount)} online
+                <span style={{ color: 'var(--muted)', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
+                  {String(project.onlineCount)}/{String(project.tunnelCount)} online
                 </span>
               </Link>
             </li>
@@ -373,12 +472,11 @@ export default function DashboardPage() {
 
       {apiToken ? (
         <details style={{ marginTop: '1.25rem' }}>
-          <summary style={{ cursor: 'pointer', fontSize: '0.875rem', fontWeight: 500 }}>
+          <summary style={{ cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}>
             CLI token
           </summary>
           <p style={{ color: 'var(--muted)', fontSize: '0.8125rem', margin: '0.75rem 0' }}>
-            Run <code style={{ color: 'var(--foreground)' }}>shiplocal login</code> or set{' '}
-            <code style={{ color: 'var(--foreground)' }}>SHIPLOCAL_TOKEN</code>
+            Run <code>shiplocal login</code> or set <code>SHIPLOCAL_TOKEN</code>
           </p>
           <code style={{ fontSize: '0.75rem', wordBreak: 'break-all' }}>
             {apiToken.slice(0, 20)}…
@@ -415,132 +513,74 @@ export default function DashboardPage() {
   } else if (isCloudEdition() && layout === 'focus') {
     content = (
       <>
-        <div style={{ marginBottom: '1.25rem' }}>{feedbackSection}</div>
+        {feedbackSection}
         <div className="dashboard-focus-secondary">{sidebar}</div>
       </>
     );
   } else {
-    content = sidebar;
+    content = <div style={{ marginTop: '1.25rem' }}>{sidebar}</div>;
   }
 
   if (loading || fetching) {
     return (
-      <main style={mainStyle}>
-        <p style={{ color: 'var(--muted)' }}>Loading dashboard…</p>
-      </main>
+      <AppShell title="Overview" subtitle="Loading your workspace…">
+        <StatsStrip stats={null} loading />
+      </AppShell>
     );
   }
 
-  return (
-    <main style={mainStyle}>
-      <style>{`
-        .dashboard-layout-toggle {
-          display: inline-flex;
-          padding: 0.25rem;
-          border-radius: 0.625rem;
-          border: 1px solid var(--border);
-          background: var(--background);
-          gap: 0.25rem;
-        }
-        .dashboard-layout-option {
-          border: none;
-          background: transparent;
-          color: var(--muted);
-          font-size: 0.8125rem;
-          font-weight: 500;
-          padding: 0.375rem 0.75rem;
-          border-radius: 0.5rem;
-          cursor: pointer;
-          transition: background 0.15s ease, color 0.15s ease;
-        }
-        .dashboard-layout-option[data-active='true'] {
-          background: var(--accent);
-          color: white;
-        }
-        .dashboard-focus-secondary {
-          display: grid;
-          gap: 1.25rem;
-          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        }
-        .dashboard-split {
-          display: grid;
-          gap: 1.25rem;
-          grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr);
-          align-items: start;
-        }
-        .dashboard-board {
-          display: grid;
-          gap: 1.25rem;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          align-items: start;
-        }
-        @media (max-width: 1024px) {
-          .dashboard-split,
-          .dashboard-board {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
-
-      <header style={headerStyle}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Dashboard</h1>
-          <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>{user?.email}</p>
-        </div>
-
-        <div style={headerActionsStyle}>
-          {isCloudEdition() ? (
-            <div>
-              <p style={layoutLabelStyle}>Layout</p>
-              <div
-                className="dashboard-layout-toggle"
-                role="radiogroup"
-                aria-label="Dashboard layout"
-              >
-                {LAYOUT_OPTIONS.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    className="dashboard-layout-option"
-                    role="radio"
-                    aria-checked={layout === option.id}
-                    aria-label={option.description}
-                    title={option.description}
-                    data-active={layout === option.id}
-                    onClick={() => selectLayout(option.id)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-          <Link
-            href="/dashboard/account"
-            style={{ ...ghostButtonStyle, textDecoration: 'none', display: 'inline-block' }}
-          >
-            Account
-          </Link>
+  const layoutActions = isCloudEdition() ? (
+    <div>
+      <p
+        style={{
+          fontSize: '0.6875rem',
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.06em',
+          color: 'var(--muted)',
+          marginBottom: '0.375rem',
+        }}
+      >
+        Layout
+      </p>
+      <div className="layout-toggle" role="radiogroup" aria-label="Dashboard layout">
+        {LAYOUT_OPTIONS.map((option) => (
           <button
-            onClick={() => {
-              logout();
-              router.push('/login');
-            }}
-            style={ghostButtonStyle}
+            key={option.id}
+            type="button"
+            className="layout-option"
+            role="radio"
+            aria-checked={layout === option.id}
+            aria-label={option.description}
+            title={option.description}
+            data-active={layout === option.id}
+            onClick={() => selectLayout(option.id)}
           >
-            Sign out
+            {option.label}
           </button>
-        </div>
-      </header>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
+  return (
+    <AppShell
+      title="Overview"
+      subtitle="Tunnels, projects, and account activity"
+      actions={layoutActions}
+    >
+      <StatsStrip stats={stats} />
 
       {actionError ? (
-        <p style={{ color: '#ef4444', fontSize: '0.875rem', marginBottom: '1rem' }}>
+        <p style={{ color: 'var(--danger)', fontSize: '0.875rem', margin: '1rem 0 0' }}>
           {actionError}
         </p>
       ) : null}
 
       {loadError ? (
-        <p style={{ color: '#ef4444', fontSize: '0.875rem', marginBottom: '1rem' }}>{loadError}</p>
+        <p style={{ color: 'var(--danger)', fontSize: '0.875rem', margin: '1rem 0 0' }}>
+          {loadError}
+        </p>
       ) : null}
 
       {content}
@@ -555,7 +595,7 @@ export default function DashboardPage() {
             position: 'fixed',
             inset: 0,
             zIndex: 1000,
-            background: 'rgba(0, 0, 0, 0.85)',
+            background: 'rgba(20, 24, 31, 0.82)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -567,21 +607,10 @@ export default function DashboardPage() {
             type="button"
             aria-label="Close screenshot preview"
             onClick={() => setExpandedScreenshot(null)}
-            style={{
-              position: 'absolute',
-              top: '1rem',
-              right: '1rem',
-              width: '2.5rem',
-              height: '2.5rem',
-              borderRadius: '9999px',
-              border: '1px solid var(--border)',
-              background: 'var(--surface)',
-              color: 'var(--foreground)',
-              fontSize: '1.25rem',
-              cursor: 'pointer',
-            }}
+            className="btn btn-secondary"
+            style={{ position: 'absolute', top: '1rem', right: '1rem' }}
           >
-            ×
+            Close
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -593,104 +622,13 @@ export default function DashboardPage() {
               maxHeight: '90vh',
               width: 'auto',
               height: 'auto',
-              borderRadius: '0.5rem',
+              borderRadius: 'var(--radius)',
               border: '1px solid var(--border)',
               cursor: 'default',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
             }}
           />
         </div>
       ) : null}
-    </main>
+    </AppShell>
   );
 }
-
-const mainStyle: React.CSSProperties = {
-  maxWidth: 1280,
-  margin: '0 auto',
-  padding: '1.5rem',
-};
-
-const headerStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '1rem',
-  flexWrap: 'wrap',
-  marginBottom: '1.25rem',
-};
-
-const headerActionsStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'flex-end',
-  gap: '1rem',
-  flexWrap: 'wrap',
-};
-
-const layoutLabelStyle: React.CSSProperties = {
-  fontSize: '0.6875rem',
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  color: 'var(--muted)',
-  marginBottom: '0.375rem',
-};
-
-const cardStyle: React.CSSProperties = {
-  background: 'var(--surface)',
-  border: '1px solid var(--border)',
-  borderRadius: '0.75rem',
-  padding: '1.25rem',
-};
-
-const sectionHeaderStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '0.5rem',
-  marginBottom: '1rem',
-};
-
-const sectionTitleStyle: React.CSSProperties = {
-  fontSize: '1rem',
-  fontWeight: 600,
-  margin: 0,
-};
-
-const badgeStyle: React.CSSProperties = {
-  fontSize: '0.75rem',
-  fontWeight: 600,
-  background: 'var(--accent)',
-  color: 'white',
-  borderRadius: '9999px',
-  padding: '0.125rem 0.5rem',
-};
-
-const feedbackItemStyle: React.CSSProperties = {
-  borderTop: '1px solid var(--border)',
-  paddingTop: '1rem',
-};
-
-const listItemStyle: React.CSSProperties = {
-  borderTop: '1px solid var(--border)',
-  paddingTop: '1rem',
-};
-
-const projectLinkStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  padding: '0.75rem',
-  borderRadius: '0.5rem',
-  border: '1px solid var(--border)',
-  textDecoration: 'none',
-  color: 'inherit',
-};
-
-const ghostButtonStyle: React.CSSProperties = {
-  padding: '0.5rem 0.75rem',
-  borderRadius: '0.5rem',
-  border: '1px solid var(--border)',
-  background: 'transparent',
-  color: 'var(--foreground)',
-  fontSize: '0.875rem',
-  cursor: 'pointer',
-};

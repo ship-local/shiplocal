@@ -1,9 +1,16 @@
-import type { CSSProperties, FormEvent, MouseEvent, ReactNode } from 'react';
+'use client';
+
+import type { CSSProperties, FormEvent, MouseEvent, PointerEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ApiError, apiFetch } from '@/lib/api';
 import { isCloudEdition } from '@/lib/edition';
-import { captureTabScreenshot, fileToDataUrl, readClipboardImage } from '@/lib/review-screenshot';
+import {
+  bakePinIntoScreenshot,
+  captureTabScreenshot,
+  fileToDataUrl,
+  readClipboardImage,
+} from '@/lib/review-screenshot';
 
 type ShareInfo = {
   subdomain: string;
@@ -16,6 +23,7 @@ type ShareInfo = {
 };
 
 type Pin = { x: number; y: number };
+type PanelPos = { x: number; y: number };
 
 type Props = Readonly<{
   subdomain: string;
@@ -27,6 +35,8 @@ export function ReviewChrome({ subdomain }: Props) {
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [panelMinimized, setPanelMinimized] = useState(false);
+  const [panelPos, setPanelPos] = useState<PanelPos>({ x: 12, y: 12 });
   const [message, setMessage] = useState('');
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [pin, setPin] = useState<Pin | null>(null);
@@ -35,6 +45,15 @@ export function ReviewChrome({ subdomain }: Props) {
   const [submitOk, setSubmitOk] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressClickRef = useRef(false);
 
   const loadShare = useCallback(async () => {
     setLoading(true);
@@ -81,15 +100,67 @@ export function ReviewChrome({ subdomain }: Props) {
   async function handleCaptureTab() {
     setCaptureBusy(true);
     setSubmitError('');
+    // Collapse the panel so it doesn't dominate the captured frame.
+    setPanelMinimized(true);
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+    // Brief pause so the browser picker shows a clear preview.
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
     try {
       const dataUrl = await captureTabScreenshot();
       setScreenshot(dataUrl);
       setPin(null);
+      setPanelMinimized(false);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Screenshot cancelled');
+      setPanelMinimized(false);
     } finally {
       setCaptureBusy(false);
     }
+  }
+
+  function onDragHandlePointerDown(event: PointerEvent<HTMLElement>) {
+    if (event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: panelPos.x,
+      originY: panelPos.y,
+      moved: false,
+    };
+  }
+
+  function onDragHandlePointerMove(event: PointerEvent<HTMLElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
+    const nextX = drag.originX - dx;
+    const nextY = drag.originY + dy;
+    setPanelPos({
+      x: Math.max(8, Math.min(window.innerWidth - 80, nextX)),
+      y: Math.max(8, Math.min(window.innerHeight - 80, nextY)),
+    });
+  }
+
+  function onDragHandlePointerUp(event: PointerEvent<HTMLElement>) {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      suppressClickRef.current = dragRef.current.moved;
+      dragRef.current = null;
+    }
+  }
+
+  function onMinimizedChipClick() {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    setPanelMinimized(false);
   }
 
   async function handlePasteClick() {
@@ -138,13 +209,18 @@ export function ReviewChrome({ subdomain }: Props) {
     setSubmitOk(false);
 
     try {
+      let shot = screenshot;
+      if (shot && pin) {
+        shot = await bakePinIntoScreenshot(shot, pin);
+      }
+
       await apiFetch('/api/comments', {
         method: 'POST',
         body: JSON.stringify({
           tunnelId: share.tunnelId,
           page: share.publicUrl,
           message: message.trim(),
-          ...(screenshot ? { screenshot } : {}),
+          ...(shot ? { screenshot: shot } : {}),
           ...(pin
             ? {
                 x: Math.round(pin.x * 1000) / 1000,
@@ -153,7 +229,8 @@ export function ReviewChrome({ subdomain }: Props) {
             : {}),
           metadata: {
             source: 'review-chrome',
-            screenshotCaptured: Boolean(screenshot),
+            screenshotCaptured: Boolean(shot),
+            pinBakedIn: Boolean(shot && pin),
             pin: pin ?? undefined,
             viewport:
               typeof window !== 'undefined'
@@ -265,7 +342,10 @@ export function ReviewChrome({ subdomain }: Props) {
           <button
             type="button"
             disabled={!share?.live}
-            onClick={() => setPanelOpen((open) => !open)}
+            onClick={() => {
+              setPanelOpen((open) => !open);
+              setPanelMinimized(false);
+            }}
             style={{
               ...feedbackButtonStyle,
               opacity: share?.live ? 1 : 0.5,
@@ -281,137 +361,193 @@ export function ReviewChrome({ subdomain }: Props) {
         {body}
 
         {panelOpen && share?.live ? (
-          <aside style={panelStyle} aria-label="Leave feedback">
-            <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem' }}>
-              Leave feedback
-            </h2>
-            <p style={{ color: 'var(--muted)', fontSize: '0.8125rem', marginBottom: '0.75rem' }}>
-              Attach a screenshot of the issue, optionally click to pin where, then send.
-            </p>
-
-            <div
-              style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}
+          panelMinimized ? (
+            <button
+              type="button"
+              aria-label="Expand feedback panel"
+              onPointerDown={onDragHandlePointerDown}
+              onPointerMove={onDragHandlePointerMove}
+              onPointerUp={onDragHandlePointerUp}
+              onClick={onMinimizedChipClick}
+              style={{
+                ...minimizedChipStyle,
+                right: panelPos.x,
+                top: panelPos.y,
+              }}
             >
-              <button
-                type="button"
-                disabled={captureBusy}
-                onClick={() => void handleCaptureTab()}
-                style={ghostButtonStyle}
+              💬 Feedback
+            </button>
+          ) : (
+            <aside
+              style={{
+                ...panelStyle,
+                right: panelPos.x,
+                top: panelPos.y,
+              }}
+              aria-label="Leave feedback"
+            >
+              <div
+                onPointerDown={onDragHandlePointerDown}
+                onPointerMove={onDragHandlePointerMove}
+                onPointerUp={onDragHandlePointerUp}
+                style={dragHandleStyle}
               >
-                {captureBusy ? 'Capturing…' : 'Capture tab'}
-              </button>
-              <button
-                type="button"
-                disabled={captureBusy}
-                onClick={() => void handlePasteClick()}
-                style={ghostButtonStyle}
-              >
-                Paste image
-              </button>
-              <button
-                type="button"
-                disabled={captureBusy}
-                onClick={() => fileInputRef.current?.click()}
-                style={ghostButtonStyle}
-              >
-                Upload
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                hidden
-                onChange={(e) => void handleFileChange(e.target.files?.[0])}
-              />
-            </div>
-
-            {screenshot ? (
-              <div style={{ marginBottom: '0.75rem' }}>
-                <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.375rem' }}>
-                  Click the image to pin the spot (optional).
-                </p>
-                <button
-                  type="button"
-                  onClick={handlePinClick}
-                  style={shotButtonStyle}
-                  aria-label="Pin feedback location on screenshot"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={screenshot} alt="Feedback screenshot" style={shotImgStyle} />
-                  {pin ? (
-                    <span
-                      style={{
-                        ...pinStyle,
-                        left: `${String(pin.x * 100)}%`,
-                        top: `${String(pin.y * 100)}%`,
-                      }}
-                    />
-                  ) : null}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setScreenshot(null);
-                    setPin(null);
-                  }}
-                  style={{
-                    ...ghostLinkStyle,
-                    marginTop: '0.375rem',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 0,
-                  }}
-                >
-                  Remove screenshot
-                </button>
+                <h2 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Leave feedback</h2>
+                <div style={{ display: 'flex', gap: '0.35rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setPanelMinimized(true)}
+                    style={iconButtonStyle}
+                    title="Minimize"
+                  >
+                    –
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPanelOpen(false)}
+                    style={iconButtonStyle}
+                    title="Close"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
-            ) : (
-              <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.75rem' }}>
-                Tip: OS screenshot → Paste, or Capture tab and choose this browser tab.
+              <p style={{ color: 'var(--muted)', fontSize: '0.8125rem', marginBottom: '0.75rem' }}>
+                Drag the header to move. Minimize before Capture tab so the panel stays out of the
+                shot.
               </p>
-            )}
 
-            <form
-              onSubmit={(e) => void handleSubmit(e)}
-              style={{ display: 'grid', gap: '0.75rem' }}
-            >
-              <label style={{ display: 'grid', gap: '0.375rem', fontSize: '0.875rem' }}>
-                Message
-                <textarea
-                  required
-                  rows={4}
-                  maxLength={5000}
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="What should change? Be specific…"
-                  style={textareaStyle}
-                />
-              </label>
-              {share ? (
-                <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: 0 }}>
-                  Prefer click-to-element on the live page?{' '}
-                  <a href={share.publicUrl} target="_blank" rel="noreferrer">
-                    Open raw URL
-                  </a>{' '}
-                  (works when the in-page 💬 overlay is active).
-                </p>
-              ) : null}
-              {submitError ? (
-                <p style={{ color: '#f87171', fontSize: '0.8125rem' }}>{submitError}</p>
-              ) : null}
-              {submitOk ? (
-                <p style={{ color: '#4ade80', fontSize: '0.8125rem' }}>Sent — thank you!</p>
-              ) : null}
-              <button
-                type="submit"
-                disabled={submitting || !message.trim()}
-                style={feedbackButtonStyle}
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
+                  marginBottom: '0.75rem',
+                }}
               >
-                {submitting ? 'Sending…' : 'Send feedback'}
-              </button>
-            </form>
-          </aside>
+                <button
+                  type="button"
+                  disabled={captureBusy}
+                  onClick={() => void handleCaptureTab()}
+                  style={ghostButtonStyle}
+                >
+                  {captureBusy ? 'Capturing…' : 'Capture tab'}
+                </button>
+                <button
+                  type="button"
+                  disabled={captureBusy}
+                  onClick={() => void handlePasteClick()}
+                  style={ghostButtonStyle}
+                >
+                  Paste image
+                </button>
+                <button
+                  type="button"
+                  disabled={captureBusy}
+                  onClick={() => fileInputRef.current?.click()}
+                  style={ghostButtonStyle}
+                >
+                  Upload
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => void handleFileChange(e.target.files?.[0])}
+                />
+              </div>
+
+              {screenshot ? (
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <p
+                    style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.375rem' }}
+                  >
+                    Click the image to pin the spot (optional).
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handlePinClick}
+                    style={shotButtonStyle}
+                    aria-label="Pin feedback location on screenshot"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={screenshot} alt="Feedback screenshot" style={shotImgStyle} />
+                    {pin ? (
+                      <span
+                        style={{
+                          ...pinStyle,
+                          left: `${String(pin.x * 100)}%`,
+                          top: `${String(pin.y * 100)}%`,
+                        }}
+                      />
+                    ) : null}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScreenshot(null);
+                      setPin(null);
+                    }}
+                    style={{
+                      ...ghostLinkStyle,
+                      marginTop: '0.375rem',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    Remove screenshot
+                  </button>
+                </div>
+              ) : (
+                <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.75rem' }}>
+                  Tip: OS screenshot → Paste, or Capture tab and choose this browser tab.
+                </p>
+              )}
+
+              <form
+                onSubmit={(e) => void handleSubmit(e)}
+                style={{ display: 'grid', gap: '0.75rem' }}
+              >
+                <label style={{ display: 'grid', gap: '0.375rem', fontSize: '0.875rem' }}>
+                  Message
+                  <textarea
+                    required
+                    rows={4}
+                    maxLength={5000}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="What should change? Be specific…"
+                    style={textareaStyle}
+                  />
+                </label>
+                {share ? (
+                  <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: 0 }}>
+                    Prefer click-to-element on the live page?{' '}
+                    <a href={share.publicUrl} target="_blank" rel="noreferrer">
+                      Open raw URL
+                    </a>{' '}
+                    (works when the in-page 💬 overlay is active).
+                  </p>
+                ) : null}
+                {submitError ? (
+                  <p style={{ color: '#f87171', fontSize: '0.8125rem' }}>{submitError}</p>
+                ) : null}
+                {submitOk ? (
+                  <p style={{ color: '#4ade80', fontSize: '0.8125rem' }}>Sent — thank you!</p>
+                ) : null}
+                <button
+                  type="submit"
+                  disabled={submitting || !message.trim()}
+                  style={feedbackButtonStyle}
+                >
+                  {submitting ? 'Sending…' : 'Send feedback'}
+                </button>
+              </form>
+            </aside>
+          )
         ) : null}
       </div>
     </div>
@@ -530,17 +666,52 @@ const frameHintStyle: CSSProperties = {
 
 const panelStyle: CSSProperties = {
   position: 'absolute',
-  top: 12,
-  right: 12,
   width: 'min(380px, calc(100% - 24px))',
   maxHeight: 'calc(100% - 24px)',
   overflow: 'auto',
-  padding: '1rem',
+  padding: '0.75rem 1rem 1rem',
   background: 'var(--surface)',
   border: '1px solid var(--border)',
   borderRadius: 10,
   boxShadow: '0 12px 40px rgba(0,0,0,0.45)',
   zIndex: 2,
+};
+
+const minimizedChipStyle: CSSProperties = {
+  position: 'absolute',
+  zIndex: 2,
+  fontSize: '0.8125rem',
+  fontWeight: 600,
+  padding: '0.55rem 0.85rem',
+  borderRadius: 999,
+  border: '1px solid var(--border)',
+  background: 'var(--accent)',
+  color: '#fff',
+  cursor: 'grab',
+  boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+};
+
+const dragHandleStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '0.5rem',
+  marginBottom: '0.75rem',
+  cursor: 'grab',
+  userSelect: 'none',
+  touchAction: 'none',
+};
+
+const iconButtonStyle: CSSProperties = {
+  width: 28,
+  height: 28,
+  borderRadius: 6,
+  border: '1px solid var(--border)',
+  background: 'transparent',
+  color: 'var(--foreground)',
+  cursor: 'pointer',
+  fontSize: '1rem',
+  lineHeight: 1,
 };
 
 const textareaStyle: CSSProperties = {

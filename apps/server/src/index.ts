@@ -19,8 +19,10 @@ import { checkDatabaseConnection, prisma } from './db.js';
 import { isCloudEdition } from './edition.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerProjectRoutes } from './routes/projects.js';
+import { registerStatsRoutes } from './routes/stats.js';
 import { registerTunnelRoutes } from './routes/tunnels.js';
 import { initTunnelManager, getTunnelManager } from './tunnel/manager.js';
+import { getNpmDownloadStats } from './lib/npm-downloads.js';
 import {
   registerTunnelHttpProxy,
   registerTunnelUpgradeProxy,
@@ -95,6 +97,7 @@ if (isCloudEdition()) {
   registerCommentRoutes(app);
 }
 registerProjectRoutes(app);
+registerStatsRoutes(app);
 registerTunnelRoutes(app, tunnelDomain, port);
 registerTunnelWebSocket(app);
 registerTunnelUpgradeProxy(app, tunnelDomain);
@@ -110,9 +113,16 @@ app.get('/health', async () => {
 });
 
 app.get('/api/status', async () => {
-  const [projectCount, tunnelCount] = await Promise.all([
+  const [projectCount, tunnelCount, tunnelsLast7Days, tunnelsLast30Days, npm] = await Promise.all([
     prisma.project.count(),
     prisma.tunnel.count(),
+    prisma.tunnel.count({
+      where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+    }),
+    prisma.tunnel.count({
+      where: { createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+    }),
+    getNpmDownloadStats(),
   ]);
 
   return {
@@ -120,6 +130,15 @@ app.get('/api/status', async () => {
     version: '0.1.0',
     projects: projectCount,
     tunnels: tunnelCount,
+    tunnelsLast7Days,
+    tunnelsLast30Days,
+    onlineTunnels: getTunnelManager().getLiveCount(),
+    npm: {
+      package: npm.package,
+      downloadsLastWeek: npm.lastWeek,
+      downloadsLastMonth: npm.lastMonth,
+      fetchedAt: npm.fetchedAt,
+    },
   };
 });
 

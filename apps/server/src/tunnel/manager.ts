@@ -176,6 +176,18 @@ export class TunnelManager {
     return this.dbTunnelIndex.has(dbTunnelId);
   }
 
+  getLiveCount(): number {
+    return this.sessions.size;
+  }
+
+  getLiveCountForUser(userId: string): number {
+    let count = 0;
+    for (const session of this.sessions.values()) {
+      if (session.userId === userId) count += 1;
+    }
+    return count;
+  }
+
   getBySocket(socket: WebSocket): TunnelSession | undefined {
     for (const session of this.sessions.values()) {
       if (session.socket === socket) return session;

@@ -23,26 +23,29 @@ export function registerTunnelRoutes(
       const manager = getTunnelManager();
 
       await reply.send({
-        tunnels: tunnels.map((tunnel) => {
-          const live = manager.getByDbTunnelId(tunnel.id);
-          return {
-            id: tunnel.id,
-            projectId: tunnel.projectId,
-            projectName: tunnel.project.name,
-            projectSlug: tunnel.project.slug,
-            name: tunnel.name,
-            subdomain: tunnel.subdomain,
-            port: tunnel.port,
-            status: live ? 'ONLINE' : tunnel.status,
-            publicUrl:
-              live?.publicUrl ??
-              buildPublicUrl(tunnel.subdomain, domain, serverPort, API_PUBLIC_URL),
-            createdAt: tunnel.createdAt.toISOString(),
-            expiresAt: tunnel.expiresAt?.toISOString() ?? null,
-            isLive: Boolean(live),
-            passwordProtected: Boolean(tunnel.passwordHash),
-          };
-        }),
+        tunnels: tunnels
+          .map((tunnel) => {
+            const live = manager.getByDbTunnelId(tunnel.id);
+            return {
+              id: tunnel.id,
+              projectId: tunnel.projectId,
+              projectName: tunnel.project.name,
+              projectSlug: tunnel.project.slug,
+              name: tunnel.name,
+              subdomain: tunnel.subdomain,
+              port: tunnel.port,
+              status: live ? ('ONLINE' as const) : tunnel.status,
+              publicUrl:
+                live?.publicUrl ??
+                buildPublicUrl(tunnel.subdomain, domain, serverPort, API_PUBLIC_URL),
+              createdAt: tunnel.createdAt.toISOString(),
+              expiresAt: tunnel.expiresAt?.toISOString() ?? null,
+              isLive: Boolean(live),
+              passwordProtected: Boolean(tunnel.passwordHash),
+            };
+          })
+          // Dashboard only needs live tunnels; offline history just clutters the list.
+          .filter((tunnel) => tunnel.isLive),
       });
     }),
   );

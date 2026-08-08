@@ -181,13 +181,21 @@ function forwardToHost(
   pathWithQuery: string,
 ): Promise<TunnelResponseMessage> {
   return new Promise((resolve, reject) => {
+    const headers = sanitizeRequestHeaders(message.headers, localPort);
+    if (body.length > 0) {
+      headers['content-length'] = body.length;
+    } else {
+      delete headers['content-length'];
+    }
+
     const req = http.request(
       {
         hostname,
         port: localPort,
         method: message.method,
         path: pathWithQuery,
-        headers: sanitizeRequestHeaders(message.headers, localPort),
+        headers,
+        timeout: 120_000,
       },
       (res) => {
         const chunks: Buffer[] = [];
@@ -226,6 +234,10 @@ function forwardToHost(
 
     req.on('error', (err) => {
       reject(err);
+    });
+
+    req.on('timeout', () => {
+      req.destroy(new Error('Local request timed out'));
     });
 
     if (body.length > 0) {

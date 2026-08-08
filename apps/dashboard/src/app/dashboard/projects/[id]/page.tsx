@@ -1,8 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { AppShell } from '@/components/app-shell';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 
@@ -49,33 +49,19 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <main style={{ maxWidth: 960, margin: '0 auto', padding: '3rem 1.5rem' }}>
+      <AppShell title="Project" subtitle="Loading…">
         <p style={{ color: 'var(--muted)' }}>Loading…</p>
-      </main>
+      </AppShell>
     );
   }
 
   return (
-    <main style={{ maxWidth: 960, margin: '0 auto', padding: '3rem 1.5rem' }}>
-      <Link href="/dashboard" style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
-        ← Back to dashboard
-      </Link>
-      <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: '1rem 0 0.5rem' }}>
-        {project.name}
-      </h1>
-      <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: '2rem' }}>
-        Slug: <code>{project.slug}</code> · Created {new Date(project.createdAt).toLocaleString()}
-      </p>
-
-      <section
-        style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '0.75rem',
-          padding: '1.5rem',
-        }}
-      >
-        <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>Tunnels</h2>
+    <AppShell
+      title={project.name}
+      subtitle={`Slug ${project.slug} · Created ${new Date(project.createdAt).toLocaleString()}`}
+    >
+      <section className="dash-section">
+        <h2 className="dash-section-title">Tunnels</h2>
         {project.tunnels.length === 0 ? (
           <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
             No tunnels for this project.
@@ -83,12 +69,20 @@ export default function ProjectDetailPage() {
         ) : (
           <ul style={{ listStyle: 'none', display: 'grid', gap: '1rem' }}>
             {project.tunnels.map((tunnel) => (
-              <li
-                key={tunnel.id}
-                style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}
-              >
-                <p style={{ fontWeight: 500 }}>
-                  {tunnel.isLive ? '🟢 Online' : '🔴 Offline'} · {tunnel.name}
+              <li key={tunnel.id} className="dash-item">
+                <p style={{ fontWeight: 600 }}>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: 8,
+                      height: 8,
+                      borderRadius: 999,
+                      background: tunnel.isLive ? 'var(--success)' : 'var(--danger)',
+                      marginRight: 8,
+                    }}
+                    aria-hidden
+                  />
+                  {tunnel.isLive ? 'Online' : 'Offline'} · {tunnel.name}
                 </p>
                 <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
                   Port {String(tunnel.port)}
@@ -111,6 +105,6 @@ export default function ProjectDetailPage() {
           </ul>
         )}
       </section>
-    </main>
+    </AppShell>
   );
 }

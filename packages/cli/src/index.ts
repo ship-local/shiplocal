@@ -24,7 +24,7 @@ program
   .description(
     'Share localhost with clients in seconds. On ShipLocal Cloud, share the Review URL so clients can leave feedback without a PR or deploy.',
   )
-  .version('0.1.10');
+  .version('0.1.11');
 
 async function runDoctorCommand(
   portArg: string | undefined,

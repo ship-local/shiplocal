@@ -1,4 +1,5 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { isAdminEmail } from './admin.js';
 import { hashApiToken, isApiToken } from './crypto.js';
 import { prisma } from '../db.js';
 
@@ -74,4 +75,16 @@ export function requireAuth(
     request.currentUser = user;
     await handler(request, reply, user);
   };
+}
+
+export function requireAdmin(
+  handler: (request: FastifyRequest, reply: FastifyReply, user: AuthenticatedUser) => Promise<void>,
+) {
+  return requireAuth(async (request, reply, user) => {
+    if (!isAdminEmail(user.email)) {
+      await reply.code(403).send({ error: 'Forbidden' });
+      return;
+    }
+    await handler(request, reply, user);
+  });
 }

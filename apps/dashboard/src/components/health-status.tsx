@@ -32,56 +32,34 @@ export async function HealthStatus() {
 
   if (!health) {
     return (
-      <section
-        style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '0.75rem',
-          padding: '1.25rem',
-        }}
-      >
-        <p style={{ fontSize: '0.875rem', color: '#ef4444' }}>
-          API unreachable at {healthCheckBaseUrl()}
-        </p>
-        <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.5rem' }}>
-          Run <code style={{ color: 'var(--foreground)' }}>pnpm dev</code> and ensure Postgres is
-          up.
-        </p>
-      </section>
+      <div className="status-row">
+        <span className="status-bad">API unreachable</span>
+        <span style={{ color: 'var(--muted)' }}>
+          Expected at {healthCheckBaseUrl()}. Run <code>pnpm dev</code> with Postgres up.
+        </span>
+      </div>
     );
   }
 
   const isHealthy = health.status === 'ok' && health.database === 'connected';
 
   return (
-    <section
-      style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: '0.75rem',
-        padding: '1.25rem',
-      }}
-    >
-      <h2 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem' }}>
-        System status
-      </h2>
-      <ul style={{ listStyle: 'none', fontSize: '0.875rem' }}>
-        <li style={{ marginBottom: '0.25rem' }}>
-          API:{' '}
-          <span style={{ color: isHealthy ? '#22c55e' : '#eab308' }}>
-            {health.status === 'ok' ? 'ok' : 'degraded'}
-          </span>
-        </li>
-        <li style={{ marginBottom: '0.25rem' }}>
-          Database:{' '}
-          <span style={{ color: health.database === 'connected' ? '#22c55e' : '#ef4444' }}>
-            {health.database}
-          </span>
-        </li>
-        <li style={{ color: 'var(--muted)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
-          Checked {new Date(health.timestamp).toLocaleString()}
-        </li>
-      </ul>
-    </section>
+    <div className="status-row" aria-label="System status">
+      <span>
+        API:{' '}
+        <span className={isHealthy ? 'status-ok' : 'status-warn'}>
+          {health.status === 'ok' ? 'ok' : 'degraded'}
+        </span>
+      </span>
+      <span>
+        Database:{' '}
+        <span className={health.database === 'connected' ? 'status-ok' : 'status-bad'}>
+          {health.database}
+        </span>
+      </span>
+      <span style={{ color: 'var(--muted)' }}>
+        Checked {new Date(health.timestamp).toLocaleString()}
+      </span>
+    </div>
   );
 }

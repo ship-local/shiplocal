@@ -1,20 +1,23 @@
 import type { CSSProperties } from 'react';
 
 export const authInputStyle: CSSProperties = {
-  padding: '0.625rem 0.75rem',
-  borderRadius: '0.5rem',
+  padding: '0.65rem 0.75rem',
+  borderRadius: 'var(--radius)',
   border: '1px solid var(--border)',
   background: 'var(--surface)',
   color: 'var(--foreground)',
+  fontFamily: 'var(--font-sans)',
+  fontSize: '0.9375rem',
 };
 
 export const authButtonStyle: CSSProperties = {
-  padding: '0.625rem 1rem',
-  borderRadius: '0.5rem',
+  padding: '0.7rem 1rem',
+  borderRadius: 'var(--radius)',
   border: 'none',
   background: 'var(--accent)',
-  color: 'white',
-  fontWeight: 500,
+  color: '#fff',
+  fontWeight: 600,
+  fontFamily: 'var(--font-sans)',
   cursor: 'pointer',
 };
 
@@ -23,4 +26,5 @@ export const authGhostButtonStyle: CSSProperties = {
   background: 'var(--surface)',
   color: 'var(--foreground)',
   border: '1px solid var(--border)',
+  boxShadow: 'var(--shadow-soft)',
 };

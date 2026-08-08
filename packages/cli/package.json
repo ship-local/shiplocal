@@ -1,6 +1,6 @@
 {
   "name": "shiplocal",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Share localhost with clients in seconds. On ShipLocal Cloud, share the Review URL for client feedback without a PR or deploy.",
   "type": "module",
   "license": "MIT",

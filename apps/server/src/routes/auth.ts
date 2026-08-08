@@ -18,6 +18,7 @@ import {
   isApiToken,
   verifyPassword,
 } from '../auth/crypto.js';
+import { isAdminEmail } from '../auth/admin.js';
 import { requireAuth } from '../auth/middleware.js';
 import { sendPasswordResetEmail } from '../email.js';
 
@@ -35,6 +36,7 @@ function toAuthUser(user: {
     email: user.email,
     name: user.name,
     hasPassword: Boolean(user.passwordHash),
+    isAdmin: isAdminEmail(user.email),
   };
 }
 

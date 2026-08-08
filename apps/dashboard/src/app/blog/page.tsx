@@ -26,13 +26,15 @@ export default function BlogPage() {
   return (
     <>
       <SiteHeader active="blog" />
-      <main style={{ maxWidth: 720, margin: '0 auto', padding: '2rem 1.5rem 4rem' }}>
+      <main className="site-frame" style={{ maxWidth: 720, padding: '2rem 1.5rem 4rem' }}>
         <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Blog</p>
         <h1
+          className="display"
           style={{
-            fontSize: 'clamp(1.75rem, 4vw, 2.25rem)',
+            fontSize: 'clamp(1.75rem, 4vw, 2.5rem)',
             fontWeight: 700,
             marginBottom: '0.75rem',
+            letterSpacing: '-0.03em',
           }}
         >
           Building in public
@@ -42,15 +44,13 @@ export default function BlogPage() {
           and agencies using the product.
         </p>
 
-        <ul style={{ listStyle: 'none', display: 'grid', gap: '1.25rem' }}>
+        <ul style={{ listStyle: 'none', display: 'grid', gap: 0 }}>
           {posts.map((post) => (
             <li key={post.slug}>
               <article
                 style={{
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '0.75rem',
-                  padding: '1.5rem',
+                  borderTop: '1px solid var(--border)',
+                  padding: '1.5rem 0',
                 }}
               >
                 <time

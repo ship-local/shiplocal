@@ -6,7 +6,6 @@ import { WebSocket, WebSocketServer } from 'ws';
 import {
   encodeBody,
   getMessageBody,
-  MAX_BODY_BYTES,
   parseTunnelHost,
   parseTunnelPath,
   resolveAppWebSocketBinary,
@@ -35,6 +34,7 @@ import {
   hasTunnelAccess,
   renderPasswordGateHtml,
 } from './password.js';
+import { resolveTunnelRequestBody, withBodyContentLength } from './request-body.js';
 
 const API_PUBLIC_URL = process.env['API_PUBLIC_URL'] ?? 'http://localhost:4000';
 const DASHBOARD_URL = process.env['DASHBOARD_URL'] ?? 'http://localhost:3001';
@@ -86,29 +86,6 @@ function validCloseCode(code: number | undefined): number | undefined {
     (code >= 3000 && code <= 4999)
     ? code
     : undefined;
-}
-
-function collectBody(request: FastifyRequest): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    let total = 0;
-
-    request.raw.on('data', (chunk: Buffer) => {
-      total += chunk.length;
-      if (total > MAX_BODY_BYTES) {
-        reject(new Error('Request body too large'));
-        request.raw.destroy();
-        return;
-      }
-      chunks.push(chunk);
-    });
-
-    request.raw.on('end', () => {
-      resolve(Buffer.concat(chunks));
-    });
-
-    request.raw.on('error', reject);
-  });
 }
 
 function flattenHeaders(
@@ -348,9 +325,12 @@ export async function proxyTunnelRequest(
       let body: Buffer = Buffer.alloc(0);
       if (request.method === 'POST') {
         try {
-          body = await collectBody(request);
-        } catch {
-          await reply.code(413).send({ error: 'Request body too large' });
+          body = await resolveTunnelRequestBody(request);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : '';
+          await reply
+            .code(message.includes('timed out') ? 408 : 413)
+            .send({ error: message || 'Invalid request body' });
           return;
         }
       }
@@ -382,14 +362,16 @@ export async function proxyTunnelRequest(
 
   let body: Buffer;
   try {
-    body =
-      request.method === 'GET' || request.method === 'HEAD'
-        ? Buffer.alloc(0)
-        : await collectBody(request);
-  } catch {
-    await reply.code(413).send({ error: 'Request body too large' });
+    body = await resolveTunnelRequestBody(request);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '';
+    await reply
+      .code(message.includes('timed out') ? 408 : 413)
+      .send({ error: message || 'Invalid request body' });
     return;
   }
+
+  const forwardHeaders = withBodyContentLength(requestHeaders, body);
 
   try {
     const startedAt = Date.now();
@@ -399,7 +381,7 @@ export async function proxyTunnelRequest(
       method: request.method,
       path: requestPath,
       query,
-      headers: requestHeaders,
+      headers: forwardHeaders,
       body: body.length > 0 ? encodeBody(body) : undefined,
     });
 
