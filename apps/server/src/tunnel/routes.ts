@@ -298,15 +298,9 @@ export async function proxyTunnelRequest(
   const requestPath = pathMatch?.path ?? request.url.split('?')[0] ?? '/';
   const query = request.url.includes('?') ? (request.url.split('?')[1] ?? '') : '';
 
-  if (
-    requestPath.startsWith('/api/') ||
-    requestPath === '/health' ||
-    requestPath === '/overlay.js' ||
-    requestPath === '/html2canvas.js'
-  ) {
-    reply.callNotFound();
-    return;
-  }
+  // Do NOT reserve /api/*, /health, etc. on tunnel hosts. Those paths belong to the
+  // developer's app (e.g. /api/v1/auth/login). ShipLocal platform routes live on the
+  // apex host and are registered as concrete Fastify routes before this proxy.
 
   const requestHeaders = flattenHeaders(request.headers);
   const corsContext = await resolveCorsContext(session, requestHeaders);
