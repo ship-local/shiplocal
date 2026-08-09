@@ -2,10 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import type { AdminPlatformStats } from '@shiplocal/shared';
 import { AppShell } from '@/components/app-shell';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { isAdminUser } from '@/lib/auth-user';
+import type { AdminPlatformStats } from '@/lib/stats-types';
 
 function formatCount(value: number | null | undefined): string {
   if (value === null || value === undefined) return '—';
@@ -39,7 +40,7 @@ export default function AdminAnalyticsPage() {
       router.replace('/login');
       return;
     }
-    if (!user.isAdmin) {
+    if (!isAdminUser(user)) {
       router.replace('/dashboard');
       return;
     }
@@ -51,7 +52,7 @@ export default function AdminAnalyticsPage() {
     return () => clearInterval(interval);
   }, [loading, user, token, router, loadStats]);
 
-  if (loading || fetching || !user?.isAdmin) {
+  if (loading || fetching || !isAdminUser(user)) {
     return (
       <AppShell title="Platform analytics" subtitle="Loading…">
         <p style={{ color: 'var(--muted)' }}>Loading platform metrics…</p>

@@ -1,6 +1,6 @@
 'use client';
 
-import type { AccountStats } from '@shiplocal/shared';
+import type { AccountStats } from '@/lib/stats-types';
 
 function formatCount(value: number | null | undefined): string {
   if (value === null || value === undefined) return '—';

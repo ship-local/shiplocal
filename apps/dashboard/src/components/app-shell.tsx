@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { isAdminUser } from '@/lib/auth-user';
 
 interface AppShellProps {
   children: ReactNode;
@@ -32,7 +33,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           >
             Overview
           </Link>
-          {user?.isAdmin ? (
+          {isAdminUser(user) ? (
             <Link
               href="/dashboard/admin"
               className="app-nav-link"

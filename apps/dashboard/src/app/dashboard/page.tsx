@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AccountStats, CommentSummary, ProjectSummary, TunnelSummary } from '@shiplocal/shared';
+import type { CommentSummary, ProjectSummary, TunnelSummary } from '@shiplocal/shared';
 import { AppShell } from '@/components/app-shell';
 import { StatsStrip } from '@/components/stats-strip';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { isCloudEdition } from '@/lib/edition';
+import type { AccountStats } from '@/lib/stats-types';
 
 const LAYOUT_STORAGE_KEY = 'shiplocal_dashboard_layout';
 const POLL_INTERVAL_MS = 10_000;

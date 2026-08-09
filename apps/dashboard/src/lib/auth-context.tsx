@@ -9,8 +9,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { AuthUser } from '@shiplocal/shared';
 import { apiFetch } from './api';
+import type { AuthUser } from './auth-user';
 
 const TOKEN_KEY = 'shiplocal_token';
 const API_TOKEN_KEY = 'shiplocal_api_token';
