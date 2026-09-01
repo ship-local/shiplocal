@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     template: '%s',
   },
   description:
-    'Open-source localhost tunneling platform — share local apps over HTTPS, self-host, or use ShipLocal Cloud.',
+    'Share a Review URL. Your client pins feedback on the running app — no deploy, no Chrome extension, no PR.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
