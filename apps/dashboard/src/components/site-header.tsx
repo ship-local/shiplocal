@@ -5,7 +5,7 @@ interface SiteHeaderProps {
   active?: 'home' | 'blog';
 }
 
-export function SiteHeader({ active }: SiteHeaderProps) {
+export function SiteHeader({ active: _active }: SiteHeaderProps) {
   return (
     <div className="site-frame">
       <header className="site-header">
@@ -14,18 +14,17 @@ export function SiteHeader({ active }: SiteHeaderProps) {
         </Link>
 
         <nav className="site-nav" aria-label="Primary">
-          <Link href="/blog" data-active={active === 'blog' ? 'true' : undefined}>
-            Blog
-          </Link>
-          <a href="https://github.com/ship-local/shiplocal" target="_blank" rel="noreferrer">
-            GitHub
+          <a href={appUrl('/')} className="btn btn-primary" style={{ padding: '0.5rem 0.9rem' }}>
+            Try Cloud
           </a>
+          <a href={appUrl('/login')}>Sign in</a>
           <a
-            href={appUrl('/register')}
-            className="btn btn-primary"
-            style={{ padding: '0.5rem 0.9rem' }}
+            href="https://github.com/ship-local/shiplocal"
+            target="_blank"
+            rel="noreferrer"
+            style={{ fontSize: '0.8rem' }}
           >
-            Get started
+            GitHub
           </a>
         </nav>
       </header>
